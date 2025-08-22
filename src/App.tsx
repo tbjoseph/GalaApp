@@ -2,6 +2,29 @@ import { useState } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
+// src/lib/saves.ts
+import { readDir } from '@tauri-apps/plugin-fs';
+import { open } from '@tauri-apps/plugin-dialog';
+import * as path from '@tauri-apps/api/path';
+
+async function pickSavesDir(): Promise<string | null> {
+  // Native directory picker (adds selected path to FS scope for this run)
+  const selection = await open({ directory: true, multiple: false });
+  if (!selection || Array.isArray(selection)) return null;
+  return selection; // absolute path string
+}
+
+async function listDbFiles(dir: string) {
+  const entries = await readDir(dir);           // absolute OK if in scope
+  const result: { name: string; full: string }[] = [];
+  for (const e of entries) {
+    if (!e.isDirectory && e.name?.toLowerCase().endsWith('.db')) {
+      result.push({ name: e.name!, full: await path.join(dir, e.name!) });
+    }
+  }
+  return result.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 
 function App() {
   const [greetMsg, setGreetMsg] = useState("");
