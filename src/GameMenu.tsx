@@ -50,54 +50,66 @@ function GameMenu({ onReady }: Props) {
   }
 
   return (
-    <div style={{ display: "grid", gap: 12, width: 280 }}>
+    <main className="container">
+        <h1>Gala Game</h1>
 
-        <button
-            onClick={newGame}
-            style={{ padding: "10px 14px", borderRadius: 12, border: "1px solid #ccc" }}
-        >
-            New Game
-        </button>
+        <div className="row">
+            <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
+        </div>
 
-        <button
-            onClick={() => setShowLoader((v) => !v)}
-            style={{ padding: "10px 14px", borderRadius: 12, border: "1px solid #ccc" }}
-        >
-            Load Game
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
 
-        {showLoader && (
-            <div style={{ display: "grid", gap: 8 }}>
-            {saves.length ? (
-                <>
-                <select
-                    value={selected}
-                    onChange={(e) => setSelected(e.target.value)}
-                    style={{ padding: "8px", borderRadius: 8, border: "1px solid #ccc" }}
-                >
-                    <option value="">Select a save…</option>
-                    {saves.map((s) => (
-                    <option key={s} value={s}>
-                        {s}
-                    </option>
-                    ))}
-                </select>
+            <div style={{ display: "grid", gap: 12, width: 280 }}>
+
                 <button
-                    onClick={loadGame}
-                    disabled={!selected}
-                    style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #ccc" }}
+                    onClick={newGame}
+                    style={{ padding: "10px 14px", borderRadius: 12, border: "1px solid #ccc" }}
                 >
-                    Load Selected
+                    New Game
                 </button>
-                </>
-            ) : (
-                <div style={{ fontSize: 12, color: "#666" }}>
-                No saves found in <code>AppConfig/saves</code>.
-                </div>
-            )}
+
+                <button
+                    onClick={() => setShowLoader((v) => !v)}
+                    style={{ padding: "10px 14px", borderRadius: 12, border: "1px solid #ccc" }}
+                >
+                    Load Game
+                </button>
+
+                {showLoader && (
+                    <div style={{ display: "grid", gap: 8 }}>
+                    {saves.length ? (
+                        <>
+                        <select
+                            value={selected}
+                            onChange={(e) => setSelected(e.target.value)}
+                            style={{ padding: "8px", borderRadius: 8, border: "1px solid #ccc" }}
+                        >
+                            <option value="">Select a save…</option>
+                            {saves.map((s) => (
+                            <option key={s} value={s}>
+                                {s}
+                            </option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={loadGame}
+                            disabled={!selected}
+                            style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #ccc" }}
+                        >
+                            Load Selected
+                        </button>
+                        </>
+                    ) : (
+                        <div style={{ fontSize: 12, color: "#666" }}>
+                        No saves found in <code>AppConfig/saves</code>.
+                        </div>
+                    )}
+                    </div>
+                )}
             </div>
-        )}
-    </div>
+
+        </div>
+    </main>
   );
 }
 
