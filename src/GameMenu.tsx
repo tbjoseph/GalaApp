@@ -1,6 +1,8 @@
 // src/components/GameMenu.tsx
 import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import SavePickerDialog from "./SavePickerDialog";
+
 
 type Props = {
   onReady?: (activeName: string) => void; // called after a save is opened
@@ -8,8 +10,9 @@ type Props = {
 
 function GameMenu({ onReady }: Props) {
     const [saves, setSaves] = useState<string[]>([]);
-    const [showLoader, setShowLoader] = useState(false);
+    // const [showLoader, setShowLoader] = useState(false);
     const [selected, setSelected] = useState<string>("");
+    const [openSavePicker, setOpenSavePicker] = useState(false);
 
     useEffect(() => {
         // prefetch save list for the Load flow
@@ -49,6 +52,8 @@ function GameMenu({ onReady }: Props) {
     onReady?.(selected);
   }
 
+  const [active, setActive] = useState<string | null>(null);
+
   return (
     <main className="container">
         <h1>Gala Game</h1>
@@ -56,6 +61,13 @@ function GameMenu({ onReady }: Props) {
         <div className="row">
             <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
         </div>
+
+        <SavePickerDialog
+            open={openSavePicker}
+            onClose={() => setOpenSavePicker(false)}
+            saves={[]}
+            onPick={() => {}}
+        />
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
 
@@ -69,13 +81,13 @@ function GameMenu({ onReady }: Props) {
                 </button>
 
                 <button
-                    onClick={() => setShowLoader((v) => !v)}
+                    onClick={() => setOpenSavePicker((v) => !v)}
                     style={{ padding: "10px 14px", borderRadius: 12, border: "1px solid #ccc" }}
                 >
                     Load Game
                 </button>
 
-                {showLoader && (
+                {/* {showLoader && (
                     <div style={{ display: "grid", gap: 8 }}>
                     {saves.length ? (
                         <>
@@ -105,7 +117,7 @@ function GameMenu({ onReady }: Props) {
                         </div>
                     )}
                     </div>
-                )}
+                )} */}
             </div>
 
         </div>
