@@ -10,6 +10,14 @@
     "opener:default",
     "sql:default",
     "fs:default",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$APPCONFIG" },
+        { "path": "$APPCONFIG/**/*" }
+      ]
+    },
+
     "dialog:default"
   ]
 }
