@@ -1,0 +1,31 @@
+import * as React from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Stack } from '@mui/material';
+
+function SavePickerDialog({ open, onClose, saves, onPick }:{
+  open: boolean;
+  onClose: () => void;
+  saves: string[];
+  onPick: (name: string) => void;
+}) {
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Load Game</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={1}>
+          {saves.length === 0 ? 'No saves found.' :
+            saves.map(name => (
+              <Button key={name} variant="outlined" onClick={() => onPick(name)} sx={{ justifyContent: 'flex-start' }}>
+                {name}
+              </Button>
+            ))
+          }
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+export default SavePickerDialog;
