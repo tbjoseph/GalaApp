@@ -13,11 +13,13 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        { "path": "$APPCONFIG" },
-        { "path": "$APPCONFIG/**/*" }
+        {
+          "path": "$APPCONFIG"
+        },
+        {
+          "path": "$APPCONFIG/**/*"
+        }
       ]
-    },
-
-    "dialog:default"
+    }
   ]
 }
