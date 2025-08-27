@@ -56,7 +56,6 @@ export default function PromptDialog({
                     variant="outlined"
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
-                    defaultValue
                 />
             </DialogContent>
             <DialogActions>
