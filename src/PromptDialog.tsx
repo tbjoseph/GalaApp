@@ -6,6 +6,7 @@ import {
   DialogActions,
   TextField,
   Button,
+  Typography,
 } from "@mui/material";
 
 interface PromptDialogProps {
@@ -28,7 +29,7 @@ export default function PromptDialog({
   const [value, setValue] = React.useState(defaultValue);
 
   const handleCancel = () => onClose();
-  const handleOk = () => onOk(value);
+  const handleOk = () => onOk(value.trim());
 
   return (
     <Dialog
@@ -42,7 +43,12 @@ export default function PromptDialog({
     >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
-        {message && <p>{message}</p>}
+        {message && (
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            {message}
+          </Typography>
+        )}
+
         <TextField
             autoFocus
             size="small"
@@ -55,7 +61,12 @@ export default function PromptDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>
-        <Button onClick={handleOk} variant="contained">
+        <Button
+            onClick={handleOk}
+            variant="contained"
+            size="small"
+            disabled={value.trim() === ""} // disable until input is non-empty
+        >
           OK
         </Button>
       </DialogActions>
