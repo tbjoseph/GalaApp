@@ -16,14 +16,6 @@ function GameMenu({ onReady }: Props) {
     const [open, setOpen] = useState(false);
     const [saveName, setSaveName] = useState<string | null>(null);
 
-    const ts = new Date();
-    const defaultName
-        = ts.getFullYear().toString() + "-"
-        + String(ts.getMonth() + 1).padStart(2, "0") + "-"
-        + String(ts.getDate()).padStart(2, "0") + "@"
-        + String(ts.getHours()).padStart(2, "0") + ":"
-        + String(ts.getMinutes()).padStart(2, "0");
-
     useEffect(() => {
         // prefetch save list for the Load flow
         (async () => {
@@ -35,6 +27,15 @@ function GameMenu({ onReady }: Props) {
             }
         })();
     }, []);
+
+    const getDate = () => {
+        const ts = new Date();
+        return ts.getFullYear().toString() + "-"
+            + String(ts.getMonth() + 1).padStart(2, "0") + "-"
+            + String(ts.getDate()).padStart(2, "0") + "@"
+            + String(ts.getHours()).padStart(2, "0") + ":"
+            + String(ts.getMinutes()).padStart(2, "0");
+    }
 
     async function newGame(newGameName: string) {
         // const fn = await invoke("test", { fileName: "myFile" });
@@ -113,25 +114,29 @@ function GameMenu({ onReady }: Props) {
                 </div>
             </div>
 
-            <SavePickerDialog
-                open={openSavePicker}
-                onClose={() => setOpenSavePicker(false)}
-                saves={[]}
-                onPick={() => { }}
-            />
+            {openSavePicker && (
+                <SavePickerDialog
+                    open={openSavePicker}
+                    onClose={() => setOpenSavePicker(false)}
+                    saves={[]}
+                    onPick={() => { }}
+                />
+            )}
 
-            <PromptDialog
-                open={open}
-                title="New Game"
-                message="Please enter a title for this game:"
-                onClose={() => setOpen(false)}
-                onOk={(value) => {
-                    setSaveName(value);
-                    setOpen(false);
-                    newGame(value);
-                }}
-                defaultValue={defaultName}
-            />
+            {open && (
+                <PromptDialog
+                    open={open}
+                    title="New Game"
+                    message="Please enter a title for this game:"
+                    onClose={() => setOpen(false)}
+                    onOk={(value) => {
+                        setSaveName(value);
+                        setOpen(false);
+                        newGame(value);
+                    }}
+                    defaultValue={getDate()}
+                />
+            )}
 
         </main>
     );
