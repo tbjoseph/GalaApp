@@ -8,7 +8,17 @@ function SavePickerDialog({ open, onClose, saves, onPick }:{
   onPick: (name: string) => void;
 }) {
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog
+      open={open}
+			onClose={onClose}
+			fullWidth
+			maxWidth="xs"
+      slotProps={{
+          paper: {
+              sx: { borderRadius: 2, p: 1, minWidth: 500 }
+          },
+      }}
+    >
       <DialogTitle>Load Game</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={1}>
