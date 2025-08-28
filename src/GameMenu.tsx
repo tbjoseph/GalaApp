@@ -1,8 +1,8 @@
 // src/components/GameMenu.tsx
 import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import SavePickerDialog from "./SavePickerDialog";
-import PromptDialog from "./PromptDialog";
+import SavePickerDialog from "./components/SavePickerDialog";
+import PromptDialog from "./components/PromptDialog";
 
 
 type Props = {
@@ -11,10 +11,10 @@ type Props = {
 
 function GameMenu({ onReady }: Props) {
     const [saves, setSaves] = useState<string[]>([]);
-    const [selected, setSelected] = useState<string>("");
+    // const [selected, setSelected] = useState<string>("");
     const [openSavePicker, setOpenSavePicker] = useState(false);
     const [open, setOpen] = useState(false);
-    const [saveName, setSaveName] = useState<string | null>(null);
+    // const [saveName, setSaveName] = useState<string | null>(null);
 
     useEffect(() => {
         // prefetch save list for the Load flow
@@ -51,8 +51,9 @@ function GameMenu({ onReady }: Props) {
     }
 
     async function loadGame(gameName: string) {
+        setOpenSavePicker(false)
         if (!gameName) return;
-        await invoke("open_existing_save", { fileName: gameName });
+        await invoke("open_existing_save", { gameName });
         onReady?.(gameName);
     }
 
@@ -118,7 +119,7 @@ function GameMenu({ onReady }: Props) {
                     open={openSavePicker}
                     onClose={() => setOpenSavePicker(false)}
                     saves={saves}
-                    onPick={() => loadGame}
+                    onPick={(value) => loadGame(value)}
                 />
             )}
 
@@ -129,7 +130,6 @@ function GameMenu({ onReady }: Props) {
                     message="Please enter a title for this game:"
                     onClose={() => setOpen(false)}
                     onOk={(value) => {
-                        setSaveName(value);
                         setOpen(false);
                         newGame(value);
                     }}

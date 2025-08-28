@@ -2,6 +2,8 @@
 mod file_service;
 use file_service::{Db, list_save_files, open_existing_save, open_new_save, list_save_game_names};
 
+mod game_service;
+use game_service::{get_all_match_results};
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 // #[tauri::command]
 // fn greet(name: &str) -> String {
@@ -30,6 +32,7 @@ pub fn run() {
             open_existing_save,
             open_new_save,
             list_save_game_names,
+            get_all_match_results,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

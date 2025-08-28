@@ -152,8 +152,38 @@ pub async fn open_new_save(
 pub async fn open_existing_save(
     app: tauri::AppHandle,
     state: tauri::State<'_, Db>,
-    file_name: String,
+    game_name: String,
 ) -> Result<(), String> {
+    // Find the file_name for the given game_name
+    let save_files = list_save_files(app.clone()).await?;
+    let mut file_name: Option<String> = None;
+
+    for candidate in save_files {
+        let path = saves_dir(&app)?.join(&candidate);
+        let opts = SqliteConnectOptions::new()
+            .filename(&path)
+            .create_if_missing(false);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .map_err(|e| format!("Failed to open {}: {}", candidate, e))?;
+
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT value FROM Config WHERE key = 'game_name' LIMIT 1")
+                .fetch_optional(&pool)
+                .await
+                .map_err(|e| format!("Failed to query {}: {}", candidate, e))?;
+
+        if let Some((db_game_name,)) = row {
+            if db_game_name == game_name {
+                file_name = Some(candidate);
+                break;
+            }
+        }
+    }
+
+    let file_name = file_name.ok_or_else(|| format!("No save found for game_name: {}", game_name))?;
     let path = saves_dir(&app)?.join(&file_name);
 
     // Fail if it doesn't exist (and ensure it's a file)
