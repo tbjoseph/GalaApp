@@ -1,6 +1,6 @@
 // src/file_service.rs
-use std::{fs, path::PathBuf, sync::Arc};
-use sqlx::SqlitePool;
+use std::{fs, path::{Path, PathBuf}, sync::Arc};
+use sqlx::{sqlite::{SqliteConnectOptions, SqlitePoolOptions}, SqlitePool};
 use tauri::Manager;
 use tokio::sync::RwLock;
 
@@ -12,6 +12,19 @@ fn saves_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
   let saves = dir.join("saves");
   fs::create_dir_all(&saves).map_err(|e| e.to_string())?;
   Ok(saves)
+}
+
+// Ensure the file name ends with `.db` (case-insensitive), reject paths with separators.
+fn normalize_save_name(raw: &str) -> Result<String, String> {
+  if raw.contains('/') || raw.contains('\\') {
+    return Err("file_name must be a bare file name (no path separators)".into());
+  }
+  let has_ext = Path::new(raw)
+    .extension()
+    .and_then(|e| e.to_str())
+    .map(|e| e.eq_ignore_ascii_case("db"))
+    .unwrap_or(false);
+  Ok(if has_ext { raw.to_string() } else { format!("{raw}.db") })
 }
 
 #[tauri::command]
@@ -33,17 +46,51 @@ pub async fn list_save_files(app: tauri::AppHandle) -> Result<Vec<String>, Strin
 
 #[tauri::command]
 pub async fn open_save(app: tauri::AppHandle, state: tauri::State<'_, Db>, file_name: String) -> Result<(), String> {
-  let path = saves_dir(&app)?.join(file_name);
-  let url = format!("sqlite://{}", path.to_string_lossy());
-  let pool = SqlitePool::connect(&url).await.map_err(|e| e.to_string())?;
+  let file_name = normalize_save_name(&file_name)?;
+  let path = saves_dir(&app)?.join(&file_name);
+  // let url = format!("sqlite://{}", path.to_string_lossy());
+
+  // Build options that CREATE the DB file if missing
+  let opts = SqliteConnectOptions::new()
+    .filename(&path)                    // <- no "sqlite://" needed
+    .create_if_missing(true)
+    // .journal_mode(SqliteJournalMode::Wal)
+    // .foreign_keys(true)
+    ;
+
+  let pool: SqlitePool = SqlitePoolOptions::new()
+    .max_connections(5)
+    .connect_with(opts)
+    .await
+    .map_err(|e| e.to_string())?;
+
+  // let pool = SqlitePool::connect(&url).await.map_err(|e| e.to_string())?;
   // schema / migrations:
   sqlx::query(r#"
-    CREATE TABLE IF NOT EXISTS todos(
-      id INTEGER PRIMARY KEY,
-      title TEXT NOT NULL,
-      done INTEGER NOT NULL DEFAULT 0
+    CREATE TABLE MatchResults (
+        id INT PRIMARY KEY CHECK (id BETWEEN 1 AND 150),
+        isEliminatedInWinners BOOLEAN NOT NULL,
+        isEliminatedInLosers BOOLEAN NOT NULL,
+        isWinnerInWinners BOOLEAN NOT NULL,
+        isWinnerInLosers BOOLEAN NOT NULL
     );
-  "#).execute(&pool).await.map_err(|e| e.to_string())?;
+
+  WITH RECURSIVE nums(id) AS (
+    SELECT 1
+    UNION ALL
+    SELECT id + 1 FROM nums WHERE id < 150
+  )
+  INSERT INTO MatchResults (
+    id, isEliminatedInWinners, isEliminatedInLosers, isWinnerInWinners, isWinnerInLosers
+  )
+  SELECT id, 0, 0, 0, 0
+  FROM nums;
+
+  "#)
+    .execute(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
   *state.0.write().await = Some(pool);
   Ok(())
 }

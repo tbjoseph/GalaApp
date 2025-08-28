@@ -44,9 +44,10 @@ function GameMenu({ onReady }: Props) {
         // const name = window.prompt("Name your save file:", `${defaultName}.db`);
         // if (!name) return;
 
-        // const safe = name.replace(/[^\w.-]+/g, "_");
-        // await invoke("open_save", { fileName: safe }); // creates/opens AppConfig/saves/<safe>
-        // onReady?.(safe);
+        const safe = newGameName.replace(/[^\w.-]+/g, "_");
+        const dbfile = safe.toLowerCase().endsWith(".db") ? safe : `${safe}.db`;
+        await invoke("open_save", { fileName: safe }); // creates/opens AppConfig/saves/<safe>
+        onReady?.(safe);
     }
 
     async function loadGame() {
@@ -118,7 +119,7 @@ function GameMenu({ onReady }: Props) {
                 <SavePickerDialog
                     open={openSavePicker}
                     onClose={() => setOpenSavePicker(false)}
-                    saves={[]}
+                    saves={saves}
                     onPick={() => { }}
                 />
             )}
