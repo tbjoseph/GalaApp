@@ -89,7 +89,7 @@ pub async fn open_new_save(app: tauri::AppHandle, state: tauri::State<'_, Db>, f
   // let pool = SqlitePool::connect(&url).await.map_err(|e| e.to_string())?;
   // schema / migrations:
   sqlx::query(r#"
-    CREATE TABLE IF NOT EXISTS MatchResults (
+    CREATE TABLE MatchResults (
         id INT PRIMARY KEY CHECK (id BETWEEN 1 AND 150),
         isEliminatedInWinners BOOLEAN NOT NULL,
         isEliminatedInLosers BOOLEAN NOT NULL,
@@ -108,7 +108,20 @@ pub async fn open_new_save(app: tauri::AppHandle, state: tauri::State<'_, Db>, f
     SELECT id, 0, 0, 0, 0
     FROM nums;
 
+    CREATE TABLE Config (
+        key STRING NOT NULL,
+        value STRING NOT NULL
+    );
   "#)
+    .execute(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+  let config_key = "game_name";
+  let config_value = game_name; // assuming game_name is a String
+  sqlx::query("INSERT INTO Config (key, value) VALUES (?, ?)")
+    .bind(config_key)
+    .bind(&config_value)
     .execute(&pool)
     .await
     .map_err(|e| e.to_string())?;
@@ -145,6 +158,37 @@ pub async fn open_existing_save(
 
   *state.0.write().await = Some(pool);
   Ok(())
+}
+
+#[tauri::command]
+pub async fn list_save_game_names(app: tauri::AppHandle) -> Result<Vec<(String, String)>, String> {
+    let save_files = list_save_files(app.clone()).await?;
+    let mut game_names = Vec::new();
+
+    for file_name in save_files {
+        let path = saves_dir(&app)?.join(&file_name);
+        let opts = SqliteConnectOptions::new()
+            .filename(&path)
+            .create_if_missing(false);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .map_err(|e| format!("Failed to open {}: {}", file_name, e))?;
+
+        let row: Option<(String,)> = sqlx::query_as("SELECT value FROM Config WHERE key = 'game_name' LIMIT 1")
+            .fetch_optional(&pool)
+            .await
+            .map_err(|e| format!("Failed to query {}: {}", file_name, e))?;
+
+        if let Some((game_name,)) = row {
+            game_names.push((file_name, game_name));
+        } else {
+            game_names.push((file_name, String::from("<unknown>")));
+        }
+    }
+
+    Ok(game_names)
 }
 
 // #[derive(serde::Serialize)]

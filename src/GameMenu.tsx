@@ -20,8 +20,8 @@ function GameMenu({ onReady }: Props) {
         // prefetch save list for the Load flow
         (async () => {
             try {
-                const list = await invoke<string[]>("list_save_files");
-                setSaves(list);
+                const list = await invoke<string[]>("list_save_game_names");
+                setSaves(list.map((s) => s?.[1]));
             } catch {
                 setSaves([]);
             }

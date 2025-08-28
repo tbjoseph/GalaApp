@@ -1,6 +1,6 @@
 // src/lib.rs
 mod file_service;
-use file_service::{Db, list_save_files, open_existing_save, open_new_save};
+use file_service::{Db, list_save_files, open_existing_save, open_new_save, list_save_game_names};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 // #[tauri::command]
@@ -29,6 +29,7 @@ pub fn run() {
             list_save_files,
             open_existing_save,
             open_new_save,
+            list_save_game_names,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
