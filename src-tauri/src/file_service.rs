@@ -106,7 +106,7 @@ pub async fn open_new_save(
     // schema / migrations:
     sqlx::query(
         r#"
-    CREATE TABLE MatchResults (
+    CREATE TABLE GameBoard (
         id INT PRIMARY KEY CHECK (id BETWEEN 1 AND 150),
         isEliminatedInWinners BOOLEAN NOT NULL,
         isEliminatedInLosers BOOLEAN NOT NULL,
@@ -119,7 +119,7 @@ pub async fn open_new_save(
       UNION ALL
       SELECT id + 1 FROM nums WHERE id < 150
     )
-    INSERT INTO MatchResults (
+    INSERT INTO GameBoard (
       id, isEliminatedInWinners, isEliminatedInLosers, isWinnerInWinners, isWinnerInLosers
     )
     SELECT id, 0, 0, 0, 0

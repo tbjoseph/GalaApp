@@ -7,7 +7,7 @@ const ROWS = 10;
 const CELL_W = 52;  // px — tweak if you want larger/smaller cells
 const CELL_H = 32;  // px
 
-function MatchResultsGrid() {
+function GameBoard() {
   const total = COLS * ROWS;
   const cells = Array.from({ length: total }, (_, i) => i + 1);
 
@@ -54,4 +54,4 @@ function MatchResultsGrid() {
   );
 }
 
-export default MatchResultsGrid;
+export default GameBoard;
