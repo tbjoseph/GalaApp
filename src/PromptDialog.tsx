@@ -16,6 +16,7 @@ interface PromptDialogProps {
     defaultValue?: string;
     onClose: () => void;
     onOk: (value: string) => void;
+    onValidate: (value: string) => boolean;
 }
 
 export default function PromptDialog({
@@ -25,8 +26,10 @@ export default function PromptDialog({
     defaultValue = "",
     onClose,
     onOk,
+    onValidate,
 }: PromptDialogProps) {
     const [value, setValue] = React.useState(defaultValue);
+    const [error, setError] = React.useState(false);
 
     const handleCancel = () => onClose();
     const handleOk = () => onOk(value.trim());
@@ -55,7 +58,18 @@ export default function PromptDialog({
                     fullWidth
                     variant="outlined"
                     value={value}
-                    onChange={(e) => setValue(e.target.value)}
+                    error={error}
+                    helperText={error ? "A save with this name already exists." : ""}
+                    onChange={(e) => {
+                        setValue(e.target.value);
+                        if (onValidate(e.target.value.trim())) {
+                            setError(false);
+                        }
+                        else {
+                            setError(true);
+                        }
+                    }}
+
                 />
             </DialogContent>
             <DialogActions>
@@ -64,7 +78,7 @@ export default function PromptDialog({
                     onClick={handleOk}
                     variant="contained"
                     size="small"
-                    disabled={value.trim() === ""} // disable until input is non-empty
+                    disabled={error}
                 >
                     OK
                 </Button>

@@ -133,6 +133,12 @@ function GameMenu({ onReady }: Props) {
                         setOpen(false);
                         newGame(value);
                     }}
+                    onValidate={(value) => {
+                        if (saves.includes(value.trim())) {
+                            return false;
+                        }
+                        return true;
+                    }}
                     defaultValue={getDate()}
                 />
             )}
