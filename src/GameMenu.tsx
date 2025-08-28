@@ -46,17 +46,15 @@ function GameMenu({ onReady }: Props) {
 
         const safe = newGameName.replace(/[^\w.-]+/g, "_");
         const dbfile = safe.toLowerCase().endsWith(".db") ? safe : `${safe}.db`;
-        await invoke("open_save", { fileName: safe }); // creates/opens AppConfig/saves/<safe>
+        await invoke("open_new_save", { fileName: dbfile, gameName: newGameName }); // creates/opens AppConfig/saves/<safe>
         onReady?.(safe);
     }
 
-    async function loadGame() {
-        if (!selected) return;
-        await invoke("open_save", { fileName: selected });
-        onReady?.(selected);
+    async function loadGame(gameName: string) {
+        if (!gameName) return;
+        await invoke("open_existing_save", { fileName: gameName });
+        onReady?.(gameName);
     }
-
-    const [active, setActive] = useState<string | null>(null);
 
     return (
         <main className="container">
@@ -120,7 +118,7 @@ function GameMenu({ onReady }: Props) {
                     open={openSavePicker}
                     onClose={() => setOpenSavePicker(false)}
                     saves={saves}
-                    onPick={() => { }}
+                    onPick={() => loadGame}
                 />
             )}
 

@@ -45,10 +45,32 @@ pub async fn list_save_files(app: tauri::AppHandle) -> Result<Vec<String>, Strin
 }
 
 #[tauri::command]
-pub async fn open_save(app: tauri::AppHandle, state: tauri::State<'_, Db>, file_name: String) -> Result<(), String> {
-  let file_name = normalize_save_name(&file_name)?;
+pub async fn open_new_save(app: tauri::AppHandle, state: tauri::State<'_, Db>, file_name: String, game_name: String) -> Result<(), String> {
+  let mut file_name = normalize_save_name(&file_name)?;
+  let existing_files = list_save_files(app.clone()).await?;
+
+  if existing_files.contains(&file_name) {
+    // Try file_name_copy.db, file_name_copy2.db, etc.
+    let (base, ext) = match file_name.rsplit_once('.') {
+      Some((b, e)) => (b.to_string(), e.to_string()),
+      None => (file_name.clone(), String::new()),
+    };
+    let mut i = 1;
+    loop {
+      let candidate = if ext.is_empty() {
+        format!("{base}_copy{i}")
+      } else {
+        format!("{base}_copy{i}.{ext}")
+      };
+      if !existing_files.contains(&candidate) {
+        file_name = candidate;
+        break;
+      }
+      i += 1;
+    }
+  }
+
   let path = saves_dir(&app)?.join(&file_name);
-  // let url = format!("sqlite://{}", path.to_string_lossy());
 
   // Build options that CREATE the DB file if missing
   let opts = SqliteConnectOptions::new()
@@ -67,7 +89,7 @@ pub async fn open_save(app: tauri::AppHandle, state: tauri::State<'_, Db>, file_
   // let pool = SqlitePool::connect(&url).await.map_err(|e| e.to_string())?;
   // schema / migrations:
   sqlx::query(r#"
-    CREATE TABLE MatchResults (
+    CREATE TABLE IF NOT EXISTS MatchResults (
         id INT PRIMARY KEY CHECK (id BETWEEN 1 AND 150),
         isEliminatedInWinners BOOLEAN NOT NULL,
         isEliminatedInLosers BOOLEAN NOT NULL,
@@ -75,16 +97,16 @@ pub async fn open_save(app: tauri::AppHandle, state: tauri::State<'_, Db>, file_
         isWinnerInLosers BOOLEAN NOT NULL
     );
 
-  WITH RECURSIVE nums(id) AS (
-    SELECT 1
-    UNION ALL
-    SELECT id + 1 FROM nums WHERE id < 150
-  )
-  INSERT INTO MatchResults (
-    id, isEliminatedInWinners, isEliminatedInLosers, isWinnerInWinners, isWinnerInLosers
-  )
-  SELECT id, 0, 0, 0, 0
-  FROM nums;
+    WITH RECURSIVE nums(id) AS (
+      SELECT 1
+      UNION ALL
+      SELECT id + 1 FROM nums WHERE id < 150
+    )
+    INSERT INTO MatchResults (
+      id, isEliminatedInWinners, isEliminatedInLosers, isWinnerInWinners, isWinnerInLosers
+    )
+    SELECT id, 0, 0, 0, 0
+    FROM nums;
 
   "#)
     .execute(&pool)
@@ -96,20 +118,33 @@ pub async fn open_save(app: tauri::AppHandle, state: tauri::State<'_, Db>, file_
 }
 
 #[tauri::command]
-pub async fn test(app: tauri::AppHandle, state: tauri::State<'_, Db>, file_name: String) -> Result<String, String> {
-  let path = saves_dir(&app)?.join(file_name);
-  let url = format!("sqlite://{}", path.to_string_lossy());
-  // let pool = SqlitePool::connect(&url).await.map_err(|e| e.to_string())?;
-  // // schema / migrations:
-  // sqlx::query(r#"
-  //   CREATE TABLE IF NOT EXISTS todos(
-  //     id INTEGER PRIMARY KEY,
-  //     title TEXT NOT NULL,
-  //     done INTEGER NOT NULL DEFAULT 0
-  //   );
-  // "#).execute(&pool).await.map_err(|e| e.to_string())?;
-  // *state.0.write().await = Some(pool);
-  Ok(url)
+pub async fn open_existing_save(
+  app: tauri::AppHandle,
+  state: tauri::State<'_, Db>,
+  file_name: String,
+) -> Result<(), String> {
+  let path = saves_dir(&app)?.join(&file_name);
+
+  // Fail if it doesn't exist (and ensure it's a file)
+  if !path.exists() || !path.is_file() {
+    return Err(format!("Save not found: {}", file_name));
+  }
+
+  let opts = SqliteConnectOptions::new()
+    .filename(&path)
+    .create_if_missing(false)              // <- enforce "existing only"
+    // .journal_mode(SqliteJournalMode::Wal)  // optional but recommended
+    // .foreign_keys(true)
+    ;
+
+  let pool: SqlitePool = SqlitePoolOptions::new()
+    .max_connections(5)
+    .connect_with(opts)
+    .await
+    .map_err(|e| e.to_string())?;
+
+  *state.0.write().await = Some(pool);
+  Ok(())
 }
 
 // #[derive(serde::Serialize)]
