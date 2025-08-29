@@ -5,8 +5,6 @@ import { grey } from "@mui/material/colors";
 
 const COLS = 15;
 const ROWS = 10;
-const CELL_W = 52;  // px — tweak if you want larger/smaller cells
-const CELL_H = 32;  // px
 
 interface GameTile {
   id: number;
@@ -23,7 +21,6 @@ function GameBoard() {
   const [tiles, setTiles] = useState<GameTile[]>([]);
 
   useEffect(() => {
-    // prefetch save list for the Load flow
     (async () => {
       try {
         const list = await invoke<GameTile[]>("get_game_board");
@@ -32,26 +29,27 @@ function GameBoard() {
         setTiles([]);
       }
     })();
-
   }, []);
 
   return (
     <Box
       sx={{
         display: "flex",
-        alignItems: "center",   // vertical center
-        justifyContent: "center", // horizontal center
-        minHeight: "100vh", // full viewport height
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
         bgcolor: "#fff",
       }}
     >
-
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: `repeat(${COLS}, ${CELL_W}px)`,
-          gridAutoRows: `${CELL_H}px`,
-          width: COLS * CELL_W,
+          gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+          gridTemplateRows: `repeat(${ROWS}, 1fr)`,
+          width: "110vw",
+          height: "80vh",
+          maxWidth: "120vw",
+          maxHeight: "110vh",
           border: "2px solid #000",
           backgroundColor: "#fff",
           userSelect: "none",
@@ -60,7 +58,6 @@ function GameBoard() {
         {cells.map((n, i) => {
           const row = Math.floor(i / COLS);
           const col = i % COLS;
-          // Find the tile with id === n
           const tile = tiles.find(t => t.id === n);
           const isEliminated = tile?.isEliminatedInWinners;
 
@@ -68,19 +65,25 @@ function GameBoard() {
             <Box
               key={n}
               sx={{
+                // Draw only needed sides so interior lines are single-pixel
                 borderTop: row === 0 ? "1px solid #000" : 0,
                 borderLeft: col === 0 ? "1px solid #000" : 0,
                 borderRight: "1px solid #000",
                 borderBottom: "1px solid #000",
-
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 color: isEliminated ? "#fff" : grey[400],
                 bgcolor: isEliminated ? "#000" : "#f7f7f7",
+                fontWeight: 600,
+                fontSize: { xs: 12, sm: 16, md: 18 },
+                lineHeight: 1,
+                width: "100%",
+                height: "100%",
+                boxSizing: "border-box",
               }}
             >
-              <Typography sx={{ fontWeight: 600, fontSize: 16, lineHeight: 1 }}>
+              <Typography sx={{ fontWeight: 600, fontSize: "inherit", lineHeight: 1 }}>
                 {n}
               </Typography>
             </Box>
