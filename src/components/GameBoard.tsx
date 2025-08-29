@@ -31,6 +31,21 @@ function GameBoard() {
     })();
   }, []);
 
+  const handleTileClick = async (tile: GameTile | undefined) => {
+    if (!tile) return;
+    const updated = !tile.isEliminatedInWinners;
+    await invoke("update_game_tile", {
+      id: tile.id,
+      isEliminatedInWinners: updated,
+      isEliminatedInLosers: tile.isEliminatedInLosers,
+      isWinnerInWinners: tile.isWinnerInWinners,
+      isWinnerInLosers: tile.isWinnerInLosers,
+    });
+    // Refresh tiles after update
+    const list = await invoke<GameTile[]>("get_game_board");
+    setTiles(list);
+  };
+
   return (
     <Box
       sx={{
@@ -49,7 +64,7 @@ function GameBoard() {
           width: "110vw",
           height: "80vh",
           maxWidth: "120vw",
-          maxHeight: "110vh",
+          maxHeight: "100vh",
           border: "2px solid #000",
           backgroundColor: "#fff",
           userSelect: "none",
@@ -64,7 +79,9 @@ function GameBoard() {
           return (
             <Box
               key={n}
+              onClick={() => handleTileClick(tile)}
               sx={{
+                cursor: "pointer",
                 // Draw only needed sides so interior lines are single-pixel
                 borderTop: row === 0 ? "1px solid #000" : 0,
                 borderLeft: col === 0 ? "1px solid #000" : 0,
@@ -81,6 +98,7 @@ function GameBoard() {
                 width: "100%",
                 height: "100%",
                 boxSizing: "border-box",
+                transition: "background 0.2s",
               }}
             >
               <Typography sx={{ fontWeight: 600, fontSize: "inherit", lineHeight: 1 }}>
