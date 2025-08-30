@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, TextField, Paper } from "@mui/material";
 import { grey } from "@mui/material/colors";
 
 const COLS = 15;
@@ -19,6 +19,9 @@ function GameBoard() {
   const cells = Array.from({ length: total }, (_, i) => i + 1);
 
   const [tiles, setTiles] = useState<GameTile[]>([]);
+  const [commandMode, setCommandMode] = useState(false);
+  const [command, setCommand] = useState("");
+  const commandInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -30,6 +33,38 @@ function GameBoard() {
       }
     })();
   }, []);
+
+  // Listen for ':' key to enter command mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!commandMode && e.key === ":") {
+        setCommandMode(true);
+        setTimeout(() => commandInputRef.current?.focus(), 0);
+        e.preventDefault();
+      } else if (commandMode && e.key === "Escape") {
+        setCommandMode(false);
+        setCommand("");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [commandMode]);
+
+  // Handle command submit
+  const handleCommandSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = command.trim();
+    // Only allow numbers for toggling
+    const num = Number(trimmed);
+    if (!isNaN(num) && num >= 1 && num <= total) {
+      const tile = tiles.find(t => t.id === num);
+      if (tile) {
+        handleTileClick(tile)
+      }
+    }
+    setCommandMode(false);
+    setCommand("");
+  };
 
   const handleTileClick = async (tile: GameTile | undefined) => {
     if (!tile) return;
@@ -54,6 +89,7 @@ function GameBoard() {
         justifyContent: "center",
         minHeight: "100vh",
         bgcolor: "#fff",
+        position: "relative",
       }}
     >
       <Box
@@ -82,7 +118,6 @@ function GameBoard() {
               onClick={() => handleTileClick(tile)}
               sx={{
                 cursor: "pointer",
-                // Draw only needed sides so interior lines are single-pixel
                 borderTop: row === 0 ? "1px solid #000" : 0,
                 borderLeft: col === 0 ? "1px solid #000" : 0,
                 borderRight: "1px solid #000",
@@ -108,6 +143,50 @@ function GameBoard() {
           );
         })}
       </Box>
+      {commandMode && (
+        <Paper
+          elevation={3}
+          sx={{
+            position: "fixed",
+            left: 0,
+            bottom: 0,
+            width: "100vw",
+            bgcolor: "#222",
+            color: "#fff",
+            p: 1,
+            zIndex: 2000,
+            borderRadius: 0,
+          }}
+        >
+          <form onSubmit={handleCommandSubmit}>
+            <Typography
+              component="span"
+              sx={{ fontFamily: "monospace", fontWeight: 700, mr: 1 }}
+            >
+              :
+            </Typography>
+            <TextField
+              inputRef={commandInputRef}
+              value={command}
+              onChange={e => setCommand(e.target.value)}
+              variant="standard"
+              InputProps={{
+                disableUnderline: true,
+                style: {
+                  color: "#fff",
+                  fontFamily: "monospace",
+                  fontSize: 18,
+                  background: "transparent",
+                },
+              }}
+              sx={{
+                width: 120,
+              }}
+              autoFocus
+            />
+          </form>
+        </Paper>
+      )}
     </Box>
   );
 }
