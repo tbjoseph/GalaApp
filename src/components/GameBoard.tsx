@@ -98,7 +98,7 @@ function GameBoard() {
           gridTemplateColumns: `repeat(${COLS}, 1fr)`,
           gridTemplateRows: `repeat(${ROWS}, 1fr)`,
           width: "110vw",
-          height: "80vh",
+          height: "75vh",
           maxWidth: "120vw",
           maxHeight: "100vh",
           border: "2px solid #000",
