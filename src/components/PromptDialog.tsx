@@ -34,6 +34,15 @@ export default function PromptDialog({
     const handleCancel = () => onClose();
     const handleOk = () => onOk(value.trim());
 
+    React.useEffect(() => {
+        if (onValidate(value.trim())) {
+            setError(false);
+        }
+        else {
+            setError(true);
+        }
+    }, []);
+
     return (
         <Dialog
             open={open}
