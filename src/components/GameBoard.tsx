@@ -61,6 +61,14 @@ function GameBoard({ onExit }: Props) {
     e.preventDefault();
     const trimmed = command.trim();
 
+    // Command: s to toggle isWinnersGame
+    if (trimmed === "s") {
+      setIsWinnersGame(prev => !prev);
+      setCommandMode(false);
+      setCommand("");
+      return;
+    }
+
     // Command: w/{number} to mark as winner
     const winnerMatch = trimmed.match(/^w\/(\d+)$/i);
     if (winnerMatch) {
@@ -320,10 +328,17 @@ function GameBoard({ onExit }: Props) {
             borderRadius: 0,
           }}
         >
-          <form onSubmit={handleCommandSubmit}>
+          <form
+            onSubmit={handleCommandSubmit}
+            style={{
+              display: "flex",
+              alignItems: "center", // Center vertically
+              height: "2.5em",      // Ensures enough height for vertical centering
+            }}
+          >
             <Typography
               component="span"
-              sx={{ fontFamily: "monospace", fontWeight: 700, mr: 1 }}
+              sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, mr: 1 }}
             >
               :
             </Typography>
