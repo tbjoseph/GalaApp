@@ -29,6 +29,7 @@ function GameBoard({ onExit }: Props) {
   const [pauseOpen, setPauseOpen] = useState(false);
   const [showCommandList, setShowCommandList] = useState(false);
   const [invalidCommand, setInvalidCommand] = useState(false);
+  const [losersEditError, setLosersEditError] = useState(false);
   const commandInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -80,8 +81,17 @@ function GameBoard({ onExit }: Props) {
       if (!isNaN(num) && num >= 1 && num <= total) {
         const tile = tiles.find(t => t.id === num);
         if (tile) {
+          // Prevent editing if in losers game and tile is winner/eliminated in winners
+          if (
+            !isWinnersGame &&
+            (tile.isEliminatedInWinners || tile.isWinnerInWinners)
+          ) {
+            setLosersEditError(true);
+            setInvalidCommand(false);
+            return;
+          }
           tile.isEliminatedInWinners = false;
-          tile.isWinnerInWinners = true;
+          tile.isWinnerInWinners = !tile.isWinnerInWinners;
           updateTile(tile);
           setCommandMode(false);
           setCommand("");
@@ -98,6 +108,15 @@ function GameBoard({ onExit }: Props) {
     if (!isNaN(num) && num >= 1 && num <= total) {
       const tile = tiles.find(t => t.id === num);
       if (tile) {
+        // Prevent editing if in losers game and tile is winner/eliminated in winners
+        if (
+          !isWinnersGame &&
+          (tile.isEliminatedInWinners || tile.isWinnerInWinners)
+        ) {
+          setLosersEditError(true);
+          setInvalidCommand(false);
+          return;
+        }
         handleTileClick(tile);
         setCommandMode(false);
         setCommand("");
@@ -499,6 +518,7 @@ function GameBoard({ onExit }: Props) {
               onChange={e => {
                 setCommand(e.target.value);
                 if (invalidCommand) setInvalidCommand(false);
+                if (losersEditError) setLosersEditError(false);
               }}
               variant="standard"
               InputProps={{
@@ -527,6 +547,20 @@ function GameBoard({ onExit }: Props) {
                 }}
               >
                 Invalid command
+              </Typography>
+            )}
+            {losersEditError && (
+              <Typography
+                sx={{
+                  color: "#ffb300",
+                  fontFamily: "monospace",
+                  fontSize: 16,
+                  ml: 2,
+                  transition: "color 0.2s",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Not allowed: cannot edit tiles used in winners game from losers game
               </Typography>
             )}
           </form>
