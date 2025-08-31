@@ -206,6 +206,7 @@ function GameBoard({ onExit }: Props) {
       >
         <DialogTitle sx={{ fontSize: "2vw", fontWeight: 700 }}>Paused</DialogTitle>
         <DialogActions
+          disableSpacing
           sx={{
             flexDirection: "column",
             alignItems: "stretch",
@@ -225,6 +226,19 @@ function GameBoard({ onExit }: Props) {
             }}
           >
             Resume
+          </Button>
+          <Button
+            onClick={() => setIsWinnersGame(prev => !prev)}
+            variant="contained"
+            color="secondary"
+            sx={{
+              fontSize: "1.2vw",
+              borderRadius: "0.7vw",
+              px: "2vw",
+              py: "0.7vw"
+            }}
+          >
+            Switch Game Screen
           </Button>
           <Button
             onClick={onExit}
