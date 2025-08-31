@@ -84,15 +84,13 @@ function GameBoard({ onExit }: Props) {
           // Prevent editing if in losers game and tile is winner/eliminated in winners
           if (
             !isWinnersGame &&
-            (tile.isEliminatedInWinners || tile.isWinnerInWinners)
+            (!tile.isEliminatedInWinners || tile.isWinnerInWinners)
           ) {
             setLosersEditError(true);
             setInvalidCommand(false);
             return;
           }
-          tile.isEliminatedInWinners = false;
-          tile.isWinnerInWinners = !tile.isWinnerInWinners;
-          updateTile(tile);
+          toggleWinner(tile);
           setCommandMode(false);
           setCommand("");
           setInvalidCommand(false);
@@ -111,7 +109,7 @@ function GameBoard({ onExit }: Props) {
         // Prevent editing if in losers game and tile is winner/eliminated in winners
         if (
           !isWinnersGame &&
-          (tile.isEliminatedInWinners || tile.isWinnerInWinners)
+          (!tile.isEliminatedInWinners || tile.isWinnerInWinners)
         ) {
           setLosersEditError(true);
           setInvalidCommand(false);
@@ -157,6 +155,10 @@ function GameBoard({ onExit }: Props) {
     tile: GameTile | undefined
   ) => {
     e.preventDefault();
+    toggleWinner(tile);
+  };
+
+  const toggleWinner = async (tile: GameTile | undefined) => {
     if (!tile) return;
 
     switch (isWinnersGame) {
@@ -557,7 +559,7 @@ function GameBoard({ onExit }: Props) {
                   whiteSpace: "nowrap",
                 }}
               >
-                Not allowed: cannot edit tiles used in winners game from losers game
+                Not allowed: can only edit eliminated tiles from Winners game
               </Typography>
             )}
           </form>

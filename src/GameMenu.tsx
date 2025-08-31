@@ -72,10 +72,10 @@ function GameMenu({ onReady }: Props) {
 
     return (
         <main className="container">
-            <h1>Gala Game</h1>
+            <h1>St. Ferdinand Raffle</h1>
 
             <div className="row">
-                <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
+                <img src="/st_ferdinand.png" className="logo tauri" alt="Tauri logo" />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
