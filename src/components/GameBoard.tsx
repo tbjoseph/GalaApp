@@ -107,8 +107,17 @@ function GameBoard({ onExit }: Props) {
 
   const handleTileClick = async (tile: GameTile | undefined) => {
     if (!tile) return;
-    tile.isEliminatedInWinners = !tile.isEliminatedInWinners;
-    tile.isWinnerInWinners = false;
+
+    switch (isWinnersGame) {
+      case true: // Winners
+        tile.isEliminatedInWinners = !tile.isEliminatedInWinners;
+        tile.isWinnerInWinners = false;
+        break;
+      case false: // Losers
+        if (tile.isEliminatedInWinners || tile.isWinnerInWinners) return;
+        tile.isEliminatedInLosers = !tile.isEliminatedInLosers;
+        tile.isWinnerInLosers = false;
+    }
     updateTile(tile);
   };
 
@@ -118,26 +127,37 @@ function GameBoard({ onExit }: Props) {
   ) => {
     e.preventDefault();
     if (!tile) return;
-    tile.isEliminatedInWinners = false;
-    tile.isWinnerInWinners = !tile.isWinnerInWinners;
+
+    switch (isWinnersGame) {
+      case true: // Winners
+        tile.isEliminatedInWinners = false;
+        tile.isWinnerInWinners = !tile.isWinnerInWinners;
+        break;
+      case false: // Losers
+        if (tile.isEliminatedInWinners || tile.isWinnerInWinners) return;
+        tile.isEliminatedInLosers = false;
+        tile.isWinnerInLosers = !tile.isWinnerInLosers;
+    }
     updateTile(tile);
   };
 
   const getTileColors = (tile: GameTile | undefined) => {
-    if (!tile || (!tile.isWinnerInWinners && !tile.isEliminatedInWinners)) return {
-      color: grey[400],
-      bgcolor: "#f7f7f7",
+    if (tile) {
+      switch (isWinnersGame) {
+        case true: // Winners
+          if (tile.isWinnerInWinners) return { color: "#f44336", bgcolor: "#4caf50" };
+          if (tile.isEliminatedInWinners) return { color: "#fff", bgcolor: "#000" };
+          break;
+        case false: // Losers
+          if (tile.isWinnerInLosers) return { color: "yellow", bgcolor: "#f44336" };
+          if (tile.isWinnerInWinners) return { color: "#f44336", bgcolor: "#4caf50" };
+          if (tile.isEliminatedInWinners) return { color: grey[600], bgcolor: grey[600] };
+          if (tile.isEliminatedInLosers) return { color: "#fff", bgcolor: "#000" };
+          break;
+      }
     };
 
-    if (tile.isWinnerInWinners) return {
-      color: "#f44336",
-      bgcolor: "#4caf50"
-    };
-
-    if (tile.isEliminatedInWinners) return {
-      color: "#fff",
-      bgcolor: "#000"
-    }
+    return { color: grey[400], bgcolor: "#f7f7f7", };
   }
 
   return (
