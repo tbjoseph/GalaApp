@@ -63,6 +63,13 @@ function GameMenu({ onReady }: Props) {
         onReady?.(gameName);
     }
 
+    async function deleteGame(fileName: string) {
+        if (!fileName) return;
+        await invoke("delete_save_file", { fileName });
+        const list = await invoke<GameSave[]>("list_save_games");
+        setGameSaves(list);
+    }
+
     return (
         <main className="container">
             <h1>Gala Game</h1>
@@ -94,6 +101,7 @@ function GameMenu({ onReady }: Props) {
                     onClose={() => setOpenSavePicker(false)}
                     gameSaves={gameSaves}
                     onPick={(value) => loadGame(value)}
+                    onDelete={(value) => deleteGame(value)}
                 />
             )}
 

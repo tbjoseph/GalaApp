@@ -276,3 +276,28 @@ pub async fn list_save_games(app: tauri::AppHandle) -> Result<Vec<GameSave>, Str
 
     Ok(game_infos)
 }
+
+#[tauri::command]
+pub async fn delete_save_file(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Db>,
+    file_name: String,
+) -> Result<(), String> {
+    // normalize + safety checks (adds .db if missing, rejects path separators)
+    let file_name = normalize_save_name(&file_name)?;
+    let path = saves_dir(&app)?.join(&file_name);
+
+    if !path.exists() || !path.is_file() {
+        return Err(format!("Save not found: {}", file_name));
+    }
+
+    // Close any open pool to release file locks (especially on Windows)
+    {
+        let mut guard = state.0.write().await;
+        *guard = None;
+    }
+
+    // Delete the file
+    fs::remove_file(&path).map_err(|e| format!("Failed to delete {}: {}", file_name, e))?;
+    Ok(())
+}
