@@ -66,20 +66,36 @@ function GameBoard() {
     setCommand("");
   };
 
-  const handleTileClick = async (tile: GameTile | undefined) => {
+  const updateTile = async (tile: GameTile | undefined) => {
     if (!tile) return;
-    const updated = !tile.isEliminatedInWinners;
-    await invoke("update_game_tile", {
-      id: tile.id,
-      isEliminatedInWinners: updated,
-      isEliminatedInLosers: tile.isEliminatedInLosers,
-      isWinnerInWinners: tile.isWinnerInWinners,
-      isWinnerInLosers: tile.isWinnerInLosers,
-    });
-    // Refresh tiles after update
+    await invoke("update_game_tile", { ...tile });
     const list = await invoke<GameTile[]>("get_game_board");
     setTiles(list);
   };
+
+  const handleTileClick = async (tile: GameTile | undefined) => {
+    if (!tile) return;
+    tile.isEliminatedInWinners = !tile.isEliminatedInWinners;
+    tile.isWinnerInWinners = false;
+    updateTile(tile);
+  };
+
+  const handleTileRightClick = async (
+    e: React.MouseEvent,
+    tile: GameTile | undefined
+  ) => {
+    e.preventDefault();
+    if (!tile) return;
+    tile.isEliminatedInWinners = false;
+    tile.isWinnerInWinners = !tile.isWinnerInWinners;
+    updateTile(tile);
+  };
+
+  const getTileColor = (tile: GameTile) => {
+    if (tile.isWinnerInWinners) return "#4caf50"; // Green for winner
+    if (tile.isEliminatedInWinners) return "#000"; // Red for eliminated f44336
+    return "#f7f7f7"; // Default
+  }
 
   return (
     <Box
@@ -116,6 +132,7 @@ function GameBoard() {
             <Box
               key={n}
               onClick={() => handleTileClick(tile)}
+              onContextMenu={e => handleTileRightClick(e, tile)}
               sx={{
                 cursor: "pointer",
                 borderTop: row === 0 ? "1px solid #000" : 0,
@@ -126,7 +143,7 @@ function GameBoard() {
                 alignItems: "center",
                 justifyContent: "center",
                 color: isEliminated ? "#fff" : grey[400],
-                bgcolor: isEliminated ? "#000" : "#f7f7f7",
+                bgcolor: tile ? getTileColor(tile) : "#f7f7f7",
                 fontWeight: 600,
                 fontSize: { xs: 12, sm: 16, md: 18 },
                 lineHeight: 1,
