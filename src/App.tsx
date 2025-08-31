@@ -11,7 +11,7 @@ function App() {
   return (
     <main>
       {activeSave ? (
-          <GameBoard />
+          <GameBoard onExit={() => setActiveSave(null)} />
         ) : (
           <GameMenu onReady={(name) => setActiveSave(name)} />
         )

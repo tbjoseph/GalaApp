@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Box, Typography, TextField, Paper } from "@mui/material";
+import { Box, Typography, TextField, Paper, Dialog, DialogTitle, DialogActions, Button } from "@mui/material";
 import { grey } from "@mui/material/colors";
 
 const COLS = 15;
@@ -14,13 +14,19 @@ interface GameTile {
   isWinnerInLosers: boolean;
 }
 
-function GameBoard() {
+type Props = {
+    onExit: () => void;
+};
+
+function GameBoard({ onExit }: Props) {
   const total = COLS * ROWS;
   const cells = Array.from({ length: total }, (_, i) => i + 1);
 
   const [tiles, setTiles] = useState<GameTile[]>([]);
+  const [isWinnersGame, setIsWinnersGame] = useState(true);
   const [commandMode, setCommandMode] = useState(false);
   const [command, setCommand] = useState("");
+  const [pauseOpen, setPauseOpen] = useState(false);
   const commandInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -137,6 +143,104 @@ function GameBoard() {
         position: "relative",
       }}
     >
+      {isWinnersGame && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: "1vw",
+            left: "2vw",
+            zIndex: 2100,
+            fontSize: "6vw",
+            color: "#000",
+            fontFamily: "serif",
+            userSelect: "none",
+            pointerEvents: "none",
+            lineHeight: 1,
+          }}
+        >
+          ♕
+        </Box>
+      )}
+      <Box
+        sx={{
+          position: "fixed",
+          top: "2.5vw",
+          right: "2vw",
+          zIndex: 2100,
+        }}
+      >
+        <button
+          onClick={() => setPauseOpen(true)}
+          style={{
+            background: "#222",
+            color: "#fff",
+            border: "none",
+            borderRadius: "1vw",
+            padding: "0.5vw 1vw",
+            fontWeight: 700,
+            fontSize: "1.5vw",
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+            minWidth: "3vw",
+            minHeight: "3vw",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5vw"
+          }}
+        >
+          <span style={{ fontSize: "1vw", lineHeight: 1, marginRight: "0.5vw" }}>▐▐</span>
+        </button>
+      </Box>
+      <Dialog
+        open={pauseOpen}
+        onClose={() => setPauseOpen(false)}
+        PaperProps={{
+          sx: {
+            minWidth: "30vw",
+            minHeight: "20vh",
+            borderRadius: "1vw",
+            p: 2,
+            textAlign: "center"
+          }
+        }}
+      >
+        <DialogTitle sx={{ fontSize: "2vw", fontWeight: 700 }}>Paused</DialogTitle>
+        <DialogActions
+          sx={{
+            flexDirection: "column",
+            alignItems: "stretch",
+            gap: 2,
+            pb: 2,
+            pt: 1,
+          }}
+        >
+          <Button
+            onClick={() => setPauseOpen(false)}
+            variant="contained"
+            sx={{
+              fontSize: "1.2vw",
+              borderRadius: "0.7vw",
+              px: "2vw",
+              py: "0.7vw"
+            }}
+          >
+            Resume
+          </Button>
+          <Button
+            onClick={onExit}
+            variant="outlined"
+            color="error"
+            sx={{
+              fontSize: "1.2vw",
+              borderRadius: "0.7vw",
+              px: "2vw",
+              py: "0.7vw"
+            }}
+          >
+            Exit Game
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Box
         sx={{
           display: "grid",
@@ -155,7 +259,6 @@ function GameBoard() {
           const row = Math.floor(i / COLS);
           const col = i % COLS;
           const tile = tiles.find(t => t.id === n);
-          const isEliminated = tile?.isEliminatedInWinners;
 
           return (
             <Box
