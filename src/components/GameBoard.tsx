@@ -54,12 +54,30 @@ function GameBoard() {
   const handleCommandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = command.trim();
-    // Only allow numbers for toggling
+
+    // Command: w/{number} to mark as winner
+    const winnerMatch = trimmed.match(/^w\/(\d+)$/i);
+    if (winnerMatch) {
+      const num = Number(winnerMatch[1]);
+      if (!isNaN(num) && num >= 1 && num <= total) {
+        const tile = tiles.find(t => t.id === num);
+        if (tile) {
+          tile.isEliminatedInWinners = false;
+          tile.isWinnerInWinners = true;
+          updateTile(tile);
+        }
+      }
+      setCommandMode(false);
+      setCommand("");
+      return;
+    }
+
+    // Default: just a number toggles eliminated
     const num = Number(trimmed);
     if (!isNaN(num) && num >= 1 && num <= total) {
       const tile = tiles.find(t => t.id === num);
       if (tile) {
-        handleTileClick(tile)
+        handleTileClick(tile);
       }
     }
     setCommandMode(false);
@@ -91,10 +109,21 @@ function GameBoard() {
     updateTile(tile);
   };
 
-  const getTileColor = (tile: GameTile) => {
-    if (tile.isWinnerInWinners) return "#4caf50"; // Green for winner
-    if (tile.isEliminatedInWinners) return "#000"; // Red for eliminated f44336
-    return "#f7f7f7"; // Default
+  const getTileColors = (tile: GameTile | undefined) => {
+    if (!tile || (!tile.isWinnerInWinners && !tile.isEliminatedInWinners)) return {
+      color: grey[400],
+      bgcolor: "#f7f7f7",
+    };
+
+    if (tile.isWinnerInWinners) return {
+      color: "#f44336",
+      bgcolor: "#4caf50"
+    };
+
+    if (tile.isEliminatedInWinners) return {
+      color: "#fff",
+      bgcolor: "#000"
+    }
   }
 
   return (
@@ -142,8 +171,6 @@ function GameBoard() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: isEliminated ? "#fff" : grey[400],
-                bgcolor: tile ? getTileColor(tile) : "#f7f7f7",
                 fontWeight: 600,
                 fontSize: { xs: 12, sm: 16, md: 18 },
                 lineHeight: 1,
@@ -151,6 +178,7 @@ function GameBoard() {
                 height: "100%",
                 boxSizing: "border-box",
                 transition: "background 0.2s",
+                ...getTileColors(tile),
               }}
             >
               <Typography sx={{ fontWeight: 600, fontSize: "inherit", lineHeight: 1 }}>
