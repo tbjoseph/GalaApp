@@ -180,10 +180,10 @@ function GameBoard({ onExit }: Props) {
           if (tile.isEliminatedInWinners) return { color: "#fff", bgcolor: "#000" };
           break;
         case false: // Losers
-          if (tile.isWinnerInWinners) return { color: "#f44336", bgcolor: "#4caf50" };
           if (tile.isWinnerInLosers) return { color: "#4caf50", bgcolor: "yellow" };
-          if (tile.isEliminatedInWinners) return { color: grey[600], bgcolor: grey[600] };
           if (tile.isEliminatedInLosers) return { color: "#fff", bgcolor: "#000" };
+          if (tile.isWinnerInWinners) return { color: "#f44336", bgcolor: "#4caf50" };
+          if (tile.isEliminatedInWinners) return { color: grey[600], bgcolor: grey[600] };
           break;
       }
     };
