@@ -1,6 +1,6 @@
 // src/lib.rs
 mod file_service;
-use file_service::{Db, list_save_files, open_existing_save, open_new_save, list_save_game_names};
+use file_service::{Db, list_save_files, open_existing_save, open_new_save, list_save_games};
 
 mod game_service;
 use game_service::{get_game_board, update_game_tile};
@@ -31,7 +31,7 @@ pub fn run() {
             list_save_files,
             open_existing_save,
             open_new_save,
-            list_save_game_names,
+            list_save_games,
             get_game_board,
             update_game_tile,
         ])

@@ -2,6 +2,7 @@
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     SqlitePool,
+    FromRow,
 };
 use std::{
     fs,
@@ -13,6 +14,25 @@ use tokio::sync::RwLock;
 
 #[derive(Default)]
 pub struct Db(pub Arc<RwLock<Option<SqlitePool>>>);
+
+#[derive(Debug, FromRow, serde::Serialize)]
+pub struct GameSave {
+    #[sqlx(rename = "fileName")]
+    #[serde(rename = "fileName")]
+    file_name: String,
+
+    #[sqlx(rename = "gameName")]
+    #[serde(rename = "gameName")]
+    game_name: String,
+
+    #[sqlx(rename = "createTime")]
+    #[serde(rename = "createTime")]
+    create_time: String,
+
+    #[sqlx(rename = "lastUpdateTime")]
+    #[serde(rename = "lastUpdateTime")]
+    last_update_time: String,
+}
 
 fn saves_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
@@ -135,11 +155,15 @@ pub async fn open_new_save(
     .await
     .map_err(|e| e.to_string())?;
 
-    let config_key = "game_name";
-    let config_value = game_name; // assuming game_name is a String
-    sqlx::query("INSERT INTO Config (key, value) VALUES (?, ?)")
-        .bind(config_key)
-        .bind(&config_value)
+    // Insert config values for gameName, CreateTime, and LastUpdateTime
+    let now = chrono::Utc::now().to_rfc3339();
+    sqlx::query("INSERT INTO Config (key, value) VALUES (?, ?), (?, ?), (?, ?)")
+        .bind("gameName")
+        .bind(&game_name)
+        .bind("CreateTime")
+        .bind(&now)
+        .bind("LastUpdateTime")
+        .bind(&now)
         .execute(&pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -170,7 +194,7 @@ pub async fn open_existing_save(
             .map_err(|e| format!("Failed to open {}: {}", candidate, e))?;
 
         let row: Option<(String,)> =
-            sqlx::query_as("SELECT value FROM Config WHERE key = 'game_name' LIMIT 1")
+            sqlx::query_as("SELECT value FROM Config WHERE key = 'gameName' LIMIT 1")
                 .fetch_optional(&pool)
                 .await
                 .map_err(|e| format!("Failed to query {}: {}", candidate, e))?;
@@ -183,7 +207,7 @@ pub async fn open_existing_save(
         }
     }
 
-    let file_name = file_name.ok_or_else(|| format!("No save found for game_name: {}", game_name))?;
+    let file_name = file_name.ok_or_else(|| format!("No save found for game: {}", game_name))?;
     let path = saves_dir(&app)?.join(&file_name);
 
     // Fail if it doesn't exist (and ensure it's a file)
@@ -209,9 +233,9 @@ pub async fn open_existing_save(
 }
 
 #[tauri::command]
-pub async fn list_save_game_names(app: tauri::AppHandle) -> Result<Vec<(String, String)>, String> {
+pub async fn list_save_games(app: tauri::AppHandle) -> Result<Vec<GameSave>, String> {
     let save_files = list_save_files(app.clone()).await?;
-    let mut game_names = Vec::new();
+    let mut game_infos = Vec::new();
 
     for file_name in save_files {
         let path = saves_dir(&app)?.join(&file_name);
@@ -224,49 +248,31 @@ pub async fn list_save_game_names(app: tauri::AppHandle) -> Result<Vec<(String, 
             .await
             .map_err(|e| format!("Failed to open {}: {}", file_name, e))?;
 
-        let row: Option<(String,)> =
-            sqlx::query_as("SELECT value FROM Config WHERE key = 'game_name' LIMIT 1")
-                .fetch_optional(&pool)
-                .await
-                .map_err(|e| format!("Failed to query {}: {}", file_name, e))?;
+        let rows: Option<GameSave> = sqlx::query_as::<_, GameSave>(
+            r#"
+            SELECT
+                ?1 AS fileName,
+                (SELECT value FROM Config WHERE key = 'gameName'        LIMIT 1) AS gameName,
+                (SELECT value FROM Config WHERE key = 'CreateTime'      LIMIT 1) AS createTime,
+                (SELECT value FROM Config WHERE key = 'LastUpdateTime'  LIMIT 1) AS lastUpdateTime
+            "#
+        )
+        .bind(&file_name)   // inject the file name you already have
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| format!("Failed to query {}: {}", file_name, e))?;
 
-        if let Some((game_name,)) = row {
-            game_names.push((file_name, game_name));
+        if let Some(gs) = rows {
+            game_infos.push(gs);
         } else {
-            game_names.push((file_name, String::from("<unknown>")));
+            game_infos.push(GameSave {
+                file_name,
+                game_name: "<unknown>".into(),
+                create_time: String::new(),
+                last_update_time: String::new(),
+            });
         }
     }
 
-    Ok(game_names)
+    Ok(game_infos)
 }
-
-// #[derive(serde::Serialize)]
-// struct Todo { id: i64, title: String, done: bool }
-
-// #[tauri::command]
-// async fn add_todo(state: tauri::State<'_, Db>, title: String) -> Result<i64, String> {
-//   let pool = state.0.read().await.as_ref().cloned().ok_or("No DB open")?;
-//   let res = sqlx::query("INSERT INTO todos (title, done) VALUES (?, 0)")
-//     .bind(title)
-//     .execute(&pool).await.map_err(|e| e.to_string())?;
-//   Ok(res.last_insert_rowid())
-// }
-
-// #[tauri::command]
-// async fn list_todos(state: tauri::State<'_, Db>) -> Result<Vec<Todo>, String> {
-//   let pool = state.0.read().await.as_ref().cloned().ok_or("No DB open")?;
-//   let rows = sqlx::query!(r#"SELECT id, title, done as "done: bool" FROM todos ORDER BY id DESC"#)
-//     .fetch_all(&pool).await.map_err(|e| e.to_string())?;
-//   Ok(rows.into_iter().map(|r| Todo { id: r.id, title: r.title, done: r.done }).collect())
-// }
-
-// #[cfg_attr(mobile, tauri::mobile_entry_point)]
-// pub fn run() {
-//   tauri::Builder::default()
-//     .manage(Db::default())
-//     .invoke_handler(tauri::generate_handler![
-//       list_save_files, open_save, add_todo, list_todos
-//     ])
-//     .run(tauri::generate_context!())
-//     .expect("error while running tauri application");
-// }

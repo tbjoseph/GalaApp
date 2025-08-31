@@ -27,4 +27,5 @@ tauri-plugin-fs = "2"
 tauri-plugin-persisted-scope = "2"
 sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio-rustls"] }
 tokio = { version = "1.47.1", features = ["rt-multi-thread", "macros"] }
+chrono = { version = "0.4.41", features = ["serde"] }
 

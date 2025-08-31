@@ -4,13 +4,19 @@ import { invoke } from "@tauri-apps/api/core";
 import SavePickerDialog from "./components/SavePickerDialog";
 import PromptDialog from "./components/PromptDialog";
 
+export interface GameSave {
+    fileName: string,
+    gameName: string,
+    createTime: string,
+    lastUpdateTime: string,
+}
 
 type Props = {
     onReady?: (activeName: string) => void; // called after a save is opened
 };
 
 function GameMenu({ onReady }: Props) {
-    const [saves, setSaves] = useState<string[]>([]);
+    const [gameSaves, setGameSaves] = useState<GameSave[]>([]);
     // const [selected, setSelected] = useState<string>("");
     const [openSavePicker, setOpenSavePicker] = useState(false);
     const [open, setOpen] = useState(false);
@@ -20,10 +26,10 @@ function GameMenu({ onReady }: Props) {
         // prefetch save list for the Load flow
         (async () => {
             try {
-                const list = await invoke<string[]>("list_save_game_names");
-                setSaves(list.map((s) => s?.[1]));
+                const list = await invoke<GameSave[]>("list_save_games");
+                setGameSaves(list);
             } catch {
-                setSaves([]);
+                setGameSaves([]);
             }
         })();
     }, []);
@@ -46,7 +52,7 @@ function GameMenu({ onReady }: Props) {
 
         const safe = newGameName.replace(/[^\w.-]+/g, "_");
         const dbfile = safe.toLowerCase().endsWith(".db") ? safe : `${safe}.db`;
-        await invoke("open_new_save", { fileName: dbfile, gameName: newGameName }); // creates/opens AppConfig/saves/<safe>
+        await invoke("open_new_save", { fileName: dbfile, gameName: newGameName }); // creates/opens AppConfig/gameSaves/<safe>
         onReady?.(safe);
     }
 
@@ -79,38 +85,6 @@ function GameMenu({ onReady }: Props) {
                     >
                         Load Game
                     </button>
-
-                    {/* {showLoader && (
-                        <div style={{ display: "grid", gap: 8 }}>
-                        {saves.length ? (
-                            <>
-                            <select
-                                value={selected}
-                                onChange={(e) => setSelected(e.target.value)}
-                                style={{ padding: "8px", borderRadius: 8, border: "1px solid #ccc" }}
-                            >
-                                <option value="">Select a save…</option>
-                                {saves.map((s) => (
-                                <option key={s} value={s}>
-                                    {s}
-                                </option>
-                                ))}
-                            </select>
-                            <button
-                                onClick={loadGame}
-                                disabled={!selected}
-                                style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #ccc" }}
-                            >
-                                Load Selected
-                            </button>
-                            </>
-                        ) : (
-                            <div style={{ fontSize: 12, color: "#666" }}>
-                            No saves found in <code>AppConfig/saves</code>.
-                            </div>
-                        )}
-                        </div>
-                    )} */}
                 </div>
             </div>
 
@@ -118,7 +92,7 @@ function GameMenu({ onReady }: Props) {
                 <SavePickerDialog
                     open={openSavePicker}
                     onClose={() => setOpenSavePicker(false)}
-                    saves={saves}
+                    gameSaves={gameSaves}
                     onPick={(value) => loadGame(value)}
                 />
             )}
@@ -134,7 +108,7 @@ function GameMenu({ onReady }: Props) {
                         newGame(value);
                     }}
                     onValidate={(value) => {
-                        if (saves.includes(value.trim())) {
+                        if (gameSaves.map(s => s.gameName).includes(value.trim())) {
                             return false;
                         }
                         return true;

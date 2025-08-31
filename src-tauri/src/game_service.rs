@@ -51,6 +51,10 @@ pub async fn update_game_tile(
     is_winner_in_losers: bool,
 ) -> Result<(), String> {
     let pool = state.0.read().await.as_ref().cloned().ok_or("No DB open")?;
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+
     sqlx::query(
         r#"
         UPDATE GameBoard
@@ -67,8 +71,20 @@ pub async fn update_game_tile(
     .bind(is_winner_in_winners)
     .bind(is_winner_in_losers)
     .bind(id)
-    .execute(&pool)
+    .execute(&mut *tx)
     .await
     .map_err(|e| e.to_string())?;
+
+    sqlx::query(
+        r#"
+        UPDATE Config SET value = ? WHERE key = 'LastUpdateTime'
+        "#
+    )
+    .bind(&now)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
 }
