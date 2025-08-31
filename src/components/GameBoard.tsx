@@ -28,6 +28,7 @@ function GameBoard({ onExit }: Props) {
   const [command, setCommand] = useState("");
   const [pauseOpen, setPauseOpen] = useState(false);
   const [showCommandList, setShowCommandList] = useState(false);
+  const [invalidCommand, setInvalidCommand] = useState(false);
   const commandInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -44,7 +45,8 @@ function GameBoard({ onExit }: Props) {
   // Listen for ':' key to enter command mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!commandMode && e.key === ":") {
+      // Don't open command mode if any dialogs are open
+      if (!(pauseOpen || showCommandList) && !commandMode && e.key === ":") {
         setCommandMode(true);
         setTimeout(() => commandInputRef.current?.focus(), 0);
         e.preventDefault();
@@ -55,7 +57,7 @@ function GameBoard({ onExit }: Props) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [commandMode]);
+  }, [commandMode, pauseOpen, showCommandList]);
 
   // Handle command submit
   const handleCommandSubmit = async (e: React.FormEvent) => {
@@ -67,6 +69,7 @@ function GameBoard({ onExit }: Props) {
       setIsWinnersGame(prev => !prev);
       setCommandMode(false);
       setCommand("");
+      setInvalidCommand(false);
       return;
     }
 
@@ -80,10 +83,13 @@ function GameBoard({ onExit }: Props) {
           tile.isEliminatedInWinners = false;
           tile.isWinnerInWinners = true;
           updateTile(tile);
+          setCommandMode(false);
+          setCommand("");
+          setInvalidCommand(false);
+          return;
         }
       }
-      setCommandMode(false);
-      setCommand("");
+      setInvalidCommand(true);
       return;
     }
 
@@ -93,10 +99,15 @@ function GameBoard({ onExit }: Props) {
       const tile = tiles.find(t => t.id === num);
       if (tile) {
         handleTileClick(tile);
+        setCommandMode(false);
+        setCommand("");
+        setInvalidCommand(false);
+        return;
       }
     }
-    setCommandMode(false);
-    setCommand("");
+
+    // Invalid command
+    setInvalidCommand(true);
   };
 
   const updateTile = async (tile: GameTile | undefined) => {
@@ -470,14 +481,25 @@ function GameBoard({ onExit }: Props) {
           >
             <Typography
               component="span"
-              sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: 18, mr: 1 }}
+              sx={{
+                fontFamily: "monospace",
+                fontWeight: 700,
+                fontSize: 18,
+                mr: 1,
+                display: "flex",
+                alignItems: "center",
+                height: "100%",
+              }}
             >
               :
             </Typography>
             <TextField
               inputRef={commandInputRef}
               value={command}
-              onChange={e => setCommand(e.target.value)}
+              onChange={e => {
+                setCommand(e.target.value);
+                if (invalidCommand) setInvalidCommand(false);
+              }}
               variant="standard"
               InputProps={{
                 disableUnderline: true,
@@ -493,6 +515,20 @@ function GameBoard({ onExit }: Props) {
               }}
               autoFocus
             />
+            {invalidCommand && (
+              <Typography
+                sx={{
+                  color: "#ff5252",
+                  fontFamily: "monospace",
+                  fontSize: 16,
+                  ml: 2,
+                  transition: "color 0.2s",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Invalid command
+              </Typography>
+            )}
           </form>
         </Paper>
       )}
