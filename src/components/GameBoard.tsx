@@ -145,7 +145,7 @@ function GameBoard({ onExit }: Props) {
         tile.isWinnerInWinners = false;
         break;
       case false: // Losers
-        if (tile.isEliminatedInWinners || tile.isWinnerInWinners) return;
+        if (!tile.isEliminatedInWinners || tile.isWinnerInWinners) return;
         tile.isEliminatedInLosers = !tile.isEliminatedInLosers;
         tile.isWinnerInLosers = false;
     }
@@ -165,7 +165,7 @@ function GameBoard({ onExit }: Props) {
         tile.isWinnerInWinners = !tile.isWinnerInWinners;
         break;
       case false: // Losers
-        if (tile.isEliminatedInWinners || tile.isWinnerInWinners) return;
+        if (!tile.isEliminatedInWinners || tile.isWinnerInWinners) return;
         tile.isEliminatedInLosers = false;
         tile.isWinnerInLosers = !tile.isWinnerInLosers;
     }
@@ -176,15 +176,14 @@ function GameBoard({ onExit }: Props) {
     if (tile) {
       switch (isWinnersGame) {
         case true: // Winners
-          if (tile.isWinnerInWinners) return { color: "#f44336", bgcolor: "#4caf50" };
+          if (tile.isWinnerInWinners) return { color: "gold", bgcolor: "#4caf50" };
           if (tile.isEliminatedInWinners) return { color: "#fff", bgcolor: "#000" };
           break;
         case false: // Losers
-          if (tile.isWinnerInLosers) return { color: "#4caf50", bgcolor: "yellow" };
+          if (tile.isWinnerInLosers) return { color: "#4caf50", bgcolor: "gold" };
           if (tile.isEliminatedInLosers) return { color: "#fff", bgcolor: "#000" };
-          if (tile.isWinnerInWinners) return { color: "#f44336", bgcolor: "#4caf50" };
-          if (tile.isEliminatedInWinners) return { color: grey[600], bgcolor: grey[600] };
-          break;
+          if (tile.isEliminatedInWinners) return { color: grey[400], bgcolor: "#fff" };
+          return { color: grey[500], bgcolor: grey[500] };
       }
     };
 
@@ -208,24 +207,22 @@ function GameBoard({ onExit }: Props) {
         position: "relative",
       }}
     >
-      {isWinnersGame && (
         <Box
           sx={{
             position: "fixed",
-            top: "1vw",
+            top: "2.6vw",
             left: "2vw",
             zIndex: 2100,
-            fontSize: "6vw",
+            fontSize: "3vw",
             color: "#000",
-            fontFamily: "serif",
+            fontFamily: "Arial Black",
             userSelect: "none",
             pointerEvents: "none",
             lineHeight: 1,
           }}
         >
-          ♕
+          {isWinnersGame ? "Reverse Raffle" : "Second Chances"}
         </Box>
-      )}
       <Box
         sx={{
           position: "fixed",
