@@ -1,5 +1,5 @@
 // src/components/GameMenu.tsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import SavePickerDialog from "./components/SavePickerDialog";
 import PromptDialog from "./components/PromptDialog";
@@ -72,7 +72,7 @@ function GameMenu({ onReady }: Props) {
 
     return (
         <main className="container">
-            <h1>St. Ferdinand Raffle</h1>
+            <h1>Gala Raffle</h1>
 
             <div className="row">
                 <img src="/st_ferdinand.png" className="logo tauri" alt="Tauri logo" />

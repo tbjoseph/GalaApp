@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "gala-app",
+        "title": "Gala Raffle",
         "width": 800,
         "height": 600
       }
