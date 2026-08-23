@@ -15,6 +15,12 @@ use tokio::sync::RwLock;
 #[derive(Default)]
 pub struct Db(pub Arc<RwLock<Option<SqlitePool>>>);
 
+impl Db {
+    pub fn lock(&self) -> &Arc<RwLock<Option<SqlitePool>>> {
+        &self.0
+    }
+}
+
 #[derive(Debug, FromRow, serde::Serialize)]
 pub struct GameSave {
     #[sqlx(rename = "fileName")]
@@ -166,7 +172,7 @@ pub async fn open_new_save(
         .await
         .map_err(|e| e.to_string())?;
 
-    *state.0.write().await = Some(pool);
+    *state.lock().write().await = Some(pool);
     Ok(())
 }
 
@@ -226,7 +232,7 @@ pub async fn open_existing_save(
         .await
         .map_err(|e| e.to_string())?;
 
-    *state.0.write().await = Some(pool);
+    *state.lock().write().await = Some(pool);
     Ok(())
 }
 
@@ -291,7 +297,7 @@ pub async fn delete_save_file(
 
     // Close any open pool to release file locks (especially on Windows)
     {
-        let mut guard = state.0.write().await;
+        let mut guard = state.lock().write().await;
         *guard = None;
     }
 

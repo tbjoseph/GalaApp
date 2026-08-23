@@ -20,7 +20,7 @@ pub struct GameTile {
 pub async fn get_game_board(
     state: State<'_, Db>,
 ) -> Result<Vec<GameTile>, String> {
-    let pool = state.0.read().await.as_ref().cloned().ok_or("No DB open")?;
+    let pool = state.lock().read().await.as_ref().cloned().ok_or("No DB open")?;
     let results = sqlx::query_as::<_, GameTile>(
         r#"
         SELECT id, isEliminatedInWinners, isEliminatedInLosers
@@ -41,7 +41,7 @@ pub async fn update_game_tile(
     is_eliminated_in_winners: bool,
     is_eliminated_in_losers: bool,
 ) -> Result<(), String> {
-    let pool = state.0.read().await.as_ref().cloned().ok_or("No DB open")?;
+    let pool = state.lock().read().await.as_ref().cloned().ok_or("No DB open")?;
     let now = chrono::Utc::now().to_rfc3339();
 
     let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
