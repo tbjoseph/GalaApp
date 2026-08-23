@@ -150,14 +150,6 @@ function GameBoard({ onExit }: Props) {
     updateTile(tile);
   };
 
-  const handleTileRightClick = async (
-    e: React.MouseEvent,
-    tile: GameTile | undefined
-  ) => {
-    e.preventDefault();
-    toggleWinner(tile);
-  };
-
   const toggleWinner = async (tile: GameTile | undefined) => {
     if (!tile) return;
 
@@ -180,11 +172,11 @@ function GameBoard({ onExit }: Props) {
         case true: // Winners
           if (tile.isWinnerInWinners) return { color: "gold", bgcolor: "#4caf50" };
           if (tile.isEliminatedInWinners) return { color: "#fff", bgcolor: "#000" };
-          break;
+          return { color: "#fff", bgcolor: "#4caf50" };
         case false: // Losers
           if (tile.isWinnerInLosers) return { color: "#4caf50", bgcolor: "gold" };
           if (tile.isEliminatedInLosers) return { color: "#fff", bgcolor: "#000" };
-          if (tile.isEliminatedInWinners) return { color: grey[400], bgcolor: "#fff" };
+          if (tile.isEliminatedInWinners) return { color: "gold", bgcolor: "#4caf50" };
           return { color: grey[500], bgcolor: grey[500] };
       }
     };
@@ -420,7 +412,7 @@ function GameBoard({ onExit }: Props) {
             </li>
           </Box>
           <Typography sx={{ fontSize: "1vw", color: grey[600] }}>
-            You can also right-click a tile to mark as winner, or left-click to toggle eliminated.
+            You can also left-click a tile to toggle eliminated.
           </Typography>
         </Box>
       </Dialog>
@@ -447,7 +439,7 @@ function GameBoard({ onExit }: Props) {
             <Box
               key={n}
               onClick={() => handleTileClick(tile)}
-              onContextMenu={e => handleTileRightClick(e, tile)}
+              onContextMenu={e => e.preventDefault()}
               sx={{
                 cursor: "pointer",
                 borderTop: row === 0 ? "1px solid #000" : 0,
