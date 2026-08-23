@@ -14,13 +14,6 @@ pub struct GameTile {
     #[serde(rename = "isEliminatedInLosers")]
     pub is_eliminated_in_losers: bool,
 
-    #[sqlx(rename = "isWinnerInWinners")]
-    #[serde(rename = "isWinnerInWinners")]
-    pub is_winner_in_winners: bool,
-
-    #[sqlx(rename = "isWinnerInLosers")]
-    #[serde(rename = "isWinnerInLosers")]
-    pub is_winner_in_losers: bool,
 }
 
 #[tauri::command]
@@ -30,7 +23,7 @@ pub async fn get_game_board(
     let pool = state.0.read().await.as_ref().cloned().ok_or("No DB open")?;
     let results = sqlx::query_as::<_, GameTile>(
         r#"
-        SELECT id, isEliminatedInWinners, isEliminatedInLosers, isWinnerInWinners, isWinnerInLosers
+        SELECT id, isEliminatedInWinners, isEliminatedInLosers
         FROM GameBoard
         ORDER BY id
         "#
@@ -47,8 +40,6 @@ pub async fn update_game_tile(
     id: i64,
     is_eliminated_in_winners: bool,
     is_eliminated_in_losers: bool,
-    is_winner_in_winners: bool,
-    is_winner_in_losers: bool,
 ) -> Result<(), String> {
     let pool = state.0.read().await.as_ref().cloned().ok_or("No DB open")?;
     let now = chrono::Utc::now().to_rfc3339();
@@ -60,16 +51,12 @@ pub async fn update_game_tile(
         UPDATE GameBoard
         SET
             isEliminatedInWinners = ?,
-            isEliminatedInLosers = ?,
-            isWinnerInWinners = ?,
-            isWinnerInLosers = ?
+            isEliminatedInLosers = ?
         WHERE id = ?
         "#
     )
     .bind(is_eliminated_in_winners)
     .bind(is_eliminated_in_losers)
-    .bind(is_winner_in_winners)
-    .bind(is_winner_in_losers)
     .bind(id)
     .execute(&mut *tx)
     .await

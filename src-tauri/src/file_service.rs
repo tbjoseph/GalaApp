@@ -129,9 +129,7 @@ pub async fn open_new_save(
     CREATE TABLE GameBoard (
         id INT PRIMARY KEY CHECK (id BETWEEN 1 AND 150),
         isEliminatedInWinners BOOLEAN NOT NULL,
-        isEliminatedInLosers BOOLEAN NOT NULL,
-        isWinnerInWinners BOOLEAN NOT NULL,
-        isWinnerInLosers BOOLEAN NOT NULL
+        isEliminatedInLosers BOOLEAN NOT NULL
     );
 
     WITH RECURSIVE nums(id) AS (
@@ -140,9 +138,9 @@ pub async fn open_new_save(
       SELECT id + 1 FROM nums WHERE id < 150
     )
     INSERT INTO GameBoard (
-      id, isEliminatedInWinners, isEliminatedInLosers, isWinnerInWinners, isWinnerInLosers
+      id, isEliminatedInWinners, isEliminatedInLosers
     )
-    SELECT id, 0, 0, 0, 0
+    SELECT id, 0, 0
     FROM nums;
 
     CREATE TABLE Config (

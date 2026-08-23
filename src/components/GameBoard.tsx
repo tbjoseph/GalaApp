@@ -10,8 +10,6 @@ interface GameTile {
   id: number;
   isEliminatedInWinners: boolean;
   isEliminatedInLosers: boolean;
-  isWinnerInWinners: boolean;
-  isWinnerInLosers: boolean;
 }
 
 type Props = {
@@ -74,43 +72,13 @@ function GameBoard({ onExit }: Props) {
       return;
     }
 
-    // Command: w/{number} to mark as winner
-    const winnerMatch = trimmed.match(/^w\/(\d+)$/i);
-    if (winnerMatch) {
-      const num = Number(winnerMatch[1]);
-      if (!isNaN(num) && num >= 1 && num <= total) {
-        const tile = tiles.find(t => t.id === num);
-        if (tile) {
-          // Prevent editing if in losers game and tile is winner/eliminated in winners
-          if (
-            !isWinnersGame &&
-            (!tile.isEliminatedInWinners || tile.isWinnerInWinners)
-          ) {
-            setLosersEditError(true);
-            setInvalidCommand(false);
-            return;
-          }
-          toggleWinner(tile);
-          setCommandMode(false);
-          setCommand("");
-          setInvalidCommand(false);
-          return;
-        }
-      }
-      setInvalidCommand(true);
-      return;
-    }
-
     // Default: just a number toggles eliminated
     const num = Number(trimmed);
     if (!isNaN(num) && num >= 1 && num <= total) {
       const tile = tiles.find(t => t.id === num);
       if (tile) {
-        // Prevent editing if in losers game and tile is winner/eliminated in winners
-        if (
-          !isWinnersGame &&
-          (!tile.isEliminatedInWinners || tile.isWinnerInWinners)
-        ) {
+        // Prevent editing if in losers game and tile is not eliminated in winners
+        if (!isWinnersGame && !tile.isEliminatedInWinners) {
           setLosersEditError(true);
           setInvalidCommand(false);
           return;
@@ -140,28 +108,10 @@ function GameBoard({ onExit }: Props) {
     switch (isWinnersGame) {
       case true: // Winners
         tile.isEliminatedInWinners = !tile.isEliminatedInWinners;
-        tile.isWinnerInWinners = false;
         break;
       case false: // Losers
-        if (!tile.isEliminatedInWinners || tile.isWinnerInWinners) return;
+        if (!tile.isEliminatedInWinners) return;
         tile.isEliminatedInLosers = !tile.isEliminatedInLosers;
-        tile.isWinnerInLosers = false;
-    }
-    updateTile(tile);
-  };
-
-  const toggleWinner = async (tile: GameTile | undefined) => {
-    if (!tile) return;
-
-    switch (isWinnersGame) {
-      case true: // Winners
-        tile.isEliminatedInWinners = false;
-        tile.isWinnerInWinners = !tile.isWinnerInWinners;
-        break;
-      case false: // Losers
-        if (!tile.isEliminatedInWinners || tile.isWinnerInWinners) return;
-        tile.isEliminatedInLosers = false;
-        tile.isWinnerInLosers = !tile.isWinnerInLosers;
     }
     updateTile(tile);
   };
@@ -170,11 +120,9 @@ function GameBoard({ onExit }: Props) {
     if (tile) {
       switch (isWinnersGame) {
         case true: // Winners
-          if (tile.isWinnerInWinners) return { color: "gold", bgcolor: "#4caf50" };
           if (tile.isEliminatedInWinners) return { color: "#fff", bgcolor: "#000" };
           return { color: "#fff", bgcolor: "#4caf50" };
         case false: // Losers
-          if (tile.isWinnerInLosers) return { color: "#4caf50", bgcolor: "gold" };
           if (tile.isEliminatedInLosers) return { color: "#fff", bgcolor: "#000" };
           if (tile.isEliminatedInWinners) return { color: "gold", bgcolor: "#4caf50" };
           return { color: grey[500], bgcolor: grey[500] };
@@ -400,9 +348,6 @@ function GameBoard({ onExit }: Props) {
           <Box component="ul" sx={{ pl: 3, mb: 2, fontSize: "1.1vw" }}>
             <li>
               <b>&lt;number&gt;</b> — Toggle <i>eliminated</i> for that tile (e.g. <b>25</b>)
-            </li>
-            <li>
-              <b>w/&lt;number&gt;</b> — Mark tile as <i>winner</i> (e.g. <b>w/25</b>)
             </li>
             <li>
               <b>s</b> — Switch between Winners and Losers game screens
