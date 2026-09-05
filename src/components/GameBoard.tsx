@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Box, Typography, TextField, Paper, Dialog, DialogTitle, DialogActions, Button } from "@mui/material";
 import { grey } from "@mui/material/colors";
+import type { GameTile } from "../types";
+import { isBatchCommand, parseBatchCommand } from "../commands/batchCommand";
 
 const COLS = 15;
 const ROWS = 10;
@@ -10,12 +12,6 @@ const ROWS = 10;
 const BATCH_REVEAL_MS = 600;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-interface GameTile {
-  id: number;
-  isEliminatedInWinners: boolean;
-  isEliminatedInLosers: boolean;
-}
 
 type Props = {
     onExit: () => void;
@@ -31,9 +27,7 @@ function GameBoard({ onExit }: Props) {
   const [command, setCommand] = useState("");
   const [pauseOpen, setPauseOpen] = useState(false);
   const [showCommandList, setShowCommandList] = useState(false);
-  const [invalidCommand, setInvalidCommand] = useState(false);
-  const [losersEditError, setLosersEditError] = useState(false);
-  const [batchError, setBatchError] = useState<string | null>(null);
+  const [commandError, setCommandError] = useState<string | null>(null);
   const [isRevealing, setIsRevealing] = useState(false);
   const commandInputRef = useRef<HTMLInputElement>(null);
 
@@ -52,9 +46,7 @@ function GameBoard({ onExit }: Props) {
   const closeCommandMode = useCallback(() => {
     setCommandMode(false);
     setCommand("");
-    setInvalidCommand(false);
-    setLosersEditError(false);
-    setBatchError(null);
+    setCommandError(null);
   }, []);
 
   // Listen for ':' key to enter command mode
@@ -78,11 +70,6 @@ function GameBoard({ onExit }: Props) {
     e.preventDefault();
     const trimmed = command.trim();
 
-    // Whatever error is on screen belongs to the previous command
-    setInvalidCommand(false);
-    setLosersEditError(false);
-    setBatchError(null);
-
     // Command: s to toggle isWinnersGame
     if (trimmed === "s") {
       setIsWinnersGame(prev => !prev);
@@ -91,16 +78,16 @@ function GameBoard({ onExit }: Props) {
     }
 
     // Command: b/<batch size>/<n1,n2,...> to eliminate several tiles at once
-    if (trimmed === "b" || trimmed.startsWith("b/")) {
-      const result = parseBatchCommand(trimmed);
+    if (isBatchCommand(trimmed)) {
+      const result = parseBatchCommand(trimmed, { tiles, isWinnersGame, total });
       if ("error" in result) {
-        setBatchError(result.error);
+        setCommandError(result.error);
         return;
       }
       try {
         await invoke("update_game_tiles", { tiles: result.tiles });
       } catch (err) {
-        setBatchError(`Update failed: ${err}`);
+        setCommandError(`Update failed: ${err}`);
         return;
       }
       closeCommandMode();
@@ -115,7 +102,7 @@ function GameBoard({ onExit }: Props) {
       if (tile) {
         // Prevent editing if in losers game and tile is not eliminated in winners
         if (!isWinnersGame && !tile.isEliminatedInWinners) {
-          setLosersEditError(true);
+          setCommandError("Not allowed: can only edit eliminated tiles from Winners game");
           return;
         }
         handleTileClick(tile);
@@ -124,74 +111,7 @@ function GameBoard({ onExit }: Props) {
       }
     }
 
-    // Invalid command
-    setInvalidCommand(true);
-  };
-
-  // Validates "b/<batch size>/<n1,n2,...>", which only ever moves tiles from
-  // not-eliminated to eliminated. Returns the tiles to write, or an error message.
-  const parseBatchCommand = (trimmed: string): { error: string } | { tiles: GameTile[] } => {
-    const usage = "Usage: b/<batch size>/<n1,n2,...>";
-    const parts = trimmed.split("/");
-    if (parts.length !== 3) return { error: usage };
-
-    const sizePart = parts[1].trim();
-    const listPart = parts[2].trim();
-    if (!/^\d+$/.test(sizePart)) return { error: "Batch size must be a whole number" };
-
-    const size = Number(sizePart);
-    if (size < 1) return { error: "Batch size must be at least 1" };
-    if (size > total) return { error: `Batch size cannot exceed ${total}` };
-    if (listPart === "") return { error: usage };
-
-    const entries = listPart.split(",").map(s => s.trim());
-    const notNumbers = entries.filter(s => !/^\d+$/.test(s));
-    if (notNumbers.length > 0) {
-      return { error: `Not a number: ${notNumbers.map(s => (s === "" ? "(blank)" : s)).join(", ")}` };
-    }
-
-    const ids = entries.map(Number);
-    if (ids.length !== size) {
-      return { error: `Batch size is ${size} but ${ids.length} number${ids.length === 1 ? " was" : "s were"} entered` };
-    }
-
-    const duplicates = [...new Set(ids.filter((n, i) => ids.indexOf(n) !== i))];
-    if (duplicates.length > 0) {
-      return { error: `Duplicate number${duplicates.length > 1 ? "s" : ""}: ${duplicates.join(", ")}` };
-    }
-
-    const outOfRange = ids.filter(n => n < 1 || n > total);
-    if (outOfRange.length > 0) {
-      return { error: `Out of range (1-${total}): ${outOfRange.join(", ")}` };
-    }
-
-    const missing = ids.filter(n => !tiles.some(t => t.id === n));
-    if (missing.length > 0) return { error: `Not on the board: ${missing.join(", ")}` };
-
-    const batch = ids.map(n => tiles.find(t => t.id === n)!);
-
-    // In the losers game a tile can only be edited once it is out of the winners game
-    if (!isWinnersGame) {
-      const stillIn = batch.filter(t => !t.isEliminatedInWinners);
-      if (stillIn.length > 0) {
-        return { error: `Not eliminated in Reverse Raffle: ${stillIn.map(t => t.id).join(", ")}` };
-      }
-    }
-
-    const alreadyEliminated = batch.filter(t =>
-      isWinnersGame ? t.isEliminatedInWinners : t.isEliminatedInLosers
-    );
-    if (alreadyEliminated.length > 0) {
-      return { error: `Already eliminated: ${alreadyEliminated.map(t => t.id).join(", ")}` };
-    }
-
-    return {
-      tiles: batch.map(t => ({
-        ...t,
-        isEliminatedInWinners: isWinnersGame ? true : t.isEliminatedInWinners,
-        isEliminatedInLosers: isWinnersGame ? t.isEliminatedInLosers : true,
-      })),
-    };
+    setCommandError("Invalid command");
   };
 
   // The batch is already saved by this point, so this only paces the board:
@@ -575,9 +495,7 @@ function GameBoard({ onExit }: Props) {
               value={command}
               onChange={e => {
                 setCommand(e.target.value);
-                if (invalidCommand) setInvalidCommand(false);
-                if (losersEditError) setLosersEditError(false);
-                if (batchError) setBatchError(null);
+                if (commandError) setCommandError(null);
               }}
               variant="standard"
               InputProps={{
@@ -594,7 +512,7 @@ function GameBoard({ onExit }: Props) {
               }}
               autoFocus
             />
-            {batchError && (
+            {commandError && (
               <Typography
                 sx={{
                   color: "#ff5252",
@@ -605,35 +523,7 @@ function GameBoard({ onExit }: Props) {
                   whiteSpace: "nowrap",
                 }}
               >
-                {batchError}
-              </Typography>
-            )}
-            {invalidCommand && (
-              <Typography
-                sx={{
-                  color: "#ff5252",
-                  fontFamily: "monospace",
-                  fontSize: 16,
-                  ml: 2,
-                  transition: "color 0.2s",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Invalid command
-              </Typography>
-            )}
-            {losersEditError && (
-              <Typography
-                sx={{
-                  color: "#ffb300",
-                  fontFamily: "monospace",
-                  fontSize: 16,
-                  ml: 2,
-                  transition: "color 0.2s",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Not allowed: can only edit eliminated tiles from Winners game
+                {commandError}
               </Typography>
             )}
           </form>
