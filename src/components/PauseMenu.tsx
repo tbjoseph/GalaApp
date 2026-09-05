@@ -142,7 +142,8 @@ function PauseMenu({ open, onClose, onSwitchGame, onExit }: Props) {
             </li>
           </Box>
           <Typography sx={{ fontSize: "1vw", color: grey[600] }}>
-            You can also left-click a tile to toggle eliminated.
+            You can also left-click a tile to toggle eliminated, or use the <b>▦</b> button
+            to build a batch by clicking tiles instead of typing them.
           </Typography>
         </Box>
       </Dialog>

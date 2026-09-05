@@ -2,10 +2,17 @@ import React, { useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Box, Typography } from "@mui/material";
 import { grey } from "@mui/material/colors";
-import type { GameTile } from "../types";
-import { isBatchCommand, parseBatchCommand } from "../commands/batchCommand";
+import type { GameTile, PendingBatch } from "../types";
+import {
+  isBatchCommand,
+  parseBatchCommand,
+  checkTileForBatch,
+  eliminateTile,
+} from "../commands/batchCommand";
 import CommandBar from "./CommandBar";
 import PauseMenu from "./PauseMenu";
+import BatchPicker from "./BatchPicker";
+import BoardControls from "./BoardControls";
 
 const COLS = 15;
 const ROWS = 10;
@@ -30,6 +37,10 @@ function GameBoard({ onExit }: Props) {
   const [pauseOpen, setPauseOpen] = useState(false);
   const [commandError, setCommandError] = useState<string | null>(null);
   const [isRevealing, setIsRevealing] = useState(false);
+  const [batchSizeOpen, setBatchSizeOpen] = useState(false);
+  const [batchMenuOpen, setBatchMenuOpen] = useState(false);
+  const [batch, setBatch] = useState<PendingBatch | null>(null);
+  const [batchError, setBatchError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -49,20 +60,48 @@ function GameBoard({ onExit }: Props) {
     setCommandError(null);
   }, []);
 
+  // Drops a half-built batch, and both of its dialogs with it
+  const abandonBatch = useCallback(() => {
+    setBatchSizeOpen(false);
+    setBatchMenuOpen(false);
+    setBatch(null);
+    setBatchError(null);
+  }, []);
+
+  // Picks made on one screen say nothing about the other, so switching games
+  // throws the batch away rather than carrying stale numbers across
+  useEffect(() => {
+    abandonBatch();
+  }, [isWinnersGame, abandonBatch]);
+
   // Listen for ':' key to enter command mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const batchOpen = batchSizeOpen || batchMenuOpen;
+      const busy = pauseOpen || isRevealing || batchOpen || batch !== null;
       // Don't open command mode if any dialogs are open
-      if (!(pauseOpen || isRevealing) && !commandMode && e.key === ":") {
+      if (!busy && !commandMode && e.key === ":") {
         setCommandMode(true);
         e.preventDefault();
       } else if (commandMode && e.key === "Escape") {
         closeCommandMode();
+      } else if (!commandMode && !batchOpen && batch !== null && e.key === "Escape") {
+        // Only while picking — with a dialog up, Escape belongs to the dialog
+        abandonBatch();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [commandMode, pauseOpen, isRevealing, closeCommandMode]);
+  }, [
+    commandMode,
+    pauseOpen,
+    isRevealing,
+    batchSizeOpen,
+    batchMenuOpen,
+    batch,
+    closeCommandMode,
+    abandonBatch,
+  ]);
 
   const handleCommandChange = (value: string) => {
     setCommand(value);
@@ -119,13 +158,13 @@ function GameBoard({ onExit }: Props) {
   };
 
   // The batch is already saved by this point, so this only paces the board:
-  // tiles flip one at a time, in the order they were typed, like a live draw
-  const revealBatch = async (batch: GameTile[]) => {
+  // tiles flip one at a time, in the order they were picked, like a live draw
+  const revealBatch = async (revealed: GameTile[]) => {
     setIsRevealing(true);
     try {
-      for (let i = 0; i < batch.length; i++) {
+      for (let i = 0; i < revealed.length; i++) {
         if (i > 0) await sleep(BATCH_REVEAL_MS);
-        const tile = batch[i];
+        const tile = revealed[i];
         setTiles(prev => prev.map(t => (t.id === tile.id ? tile : t)));
       }
       const list = await invoke<GameTile[]>("get_game_board");
@@ -133,6 +172,65 @@ function GameBoard({ onExit }: Props) {
     } finally {
       setIsRevealing(false);
     }
+  };
+
+  const startBatch = (size: number) => {
+    setBatchSizeOpen(false);
+    setBatch({ size, picked: [] });
+    setBatchError(null);
+  };
+
+  // A click on the board while a batch is running adds the tile, or takes it
+  // back out if it was already picked
+  const handleBatchPick = (tile: GameTile, pending: PendingBatch) => {
+    setBatchError(null);
+
+    if (pending.picked.includes(tile.id)) {
+      setBatch({ ...pending, picked: pending.picked.filter(id => id !== tile.id) });
+      return;
+    }
+    if (pending.picked.length >= pending.size) {
+      setBatchError(`Batch already holds ${pending.size} — complete it or drop one first`);
+      return;
+    }
+    const message = checkTileForBatch(tile, isWinnersGame);
+    if (message) {
+      setBatchError(message);
+      return;
+    }
+
+    const picked = [...pending.picked, tile.id];
+    setBatch({ ...pending, picked });
+    // The pick that fills the batch brings the dialog back up on its own, so
+    // completing does not cost a trip to the button
+    if (picked.length === pending.size) setBatchMenuOpen(true);
+  };
+
+  // Writes the finished batch, then hands it to the same paced reveal the
+  // typed command uses
+  const completeBatch = async () => {
+    if (!batch || batch.picked.length !== batch.size) return;
+
+    const picked = batch.picked
+      .map(id => tiles.find(t => t.id === id))
+      .filter((t): t is GameTile => t !== undefined);
+    if (picked.length !== batch.size) {
+      setBatchError("Some picked tiles are no longer on the board");
+      return;
+    }
+
+    const updated = picked.map(t => eliminateTile(t, isWinnersGame));
+    try {
+      await invoke("update_game_tiles", { tiles: updated });
+    } catch (err) {
+      setBatchError(`Update failed: ${err}`);
+      return;
+    }
+
+    setBatchMenuOpen(false);
+    setBatch(null);
+    setBatchError(null);
+    await revealBatch(updated);
   };
 
   const updateTile = async (tile: GameTile | undefined) => {
@@ -144,6 +242,12 @@ function GameBoard({ onExit }: Props) {
 
   const handleTileClick = async (tile: GameTile | undefined) => {
     if (!tile || isRevealing) return;
+
+    // While a batch is being built, clicks pick tiles instead of flipping them
+    if (batch) {
+      handleBatchPick(tile, batch);
+      return;
+    }
 
     switch (isWinnersGame) {
       case true: // Winners
@@ -172,6 +276,10 @@ function GameBoard({ onExit }: Props) {
     return { color: grey[400], bgcolor: "#f7f7f7", };
   }
 
+  // Mid-batch the button reopens the batch dialog, so it only locks while the
+  // board is mid-reveal
+  const batchButtonDisabled = isRevealing;
+
   return (
     <Box
       sx={{
@@ -199,36 +307,25 @@ function GameBoard({ onExit }: Props) {
         >
           {isWinnersGame ? "Reverse Raffle" : "Second Chances"}
         </Box>
-      <Box
-        sx={{
-          position: "fixed",
-          top: "2.5vw",
-          right: "2vw",
-          zIndex: 2100,
-        }}
-      >
-        <button
-          onClick={() => setPauseOpen(true)}
-          style={{
-            background: "#222",
-            color: "#fff",
-            border: "none",
-            borderRadius: "1vw",
-            padding: "0.5vw 1vw",
-            fontWeight: 700,
-            fontSize: "1.5vw",
-            cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-            minWidth: "3vw",
-            minHeight: "3vw",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5vw"
-          }}
-        >
-          <span style={{ fontSize: "1vw", lineHeight: 1, marginRight: "0.5vw" }}>▐▐</span>
-        </button>
-      </Box>
+      <BoardControls
+        batch={batch}
+        batchError={batchError}
+        batchDisabled={batchButtonDisabled}
+        onBatch={() => (batch ? setBatchMenuOpen(true) : setBatchSizeOpen(true))}
+        onPause={() => setPauseOpen(true)}
+      />
+      <BatchPicker
+        sizeOpen={batchSizeOpen}
+        total={total}
+        onStart={startBatch}
+        onCancelSize={() => setBatchSizeOpen(false)}
+        batch={batch}
+        menuOpen={batchMenuOpen}
+        error={batchError}
+        onKeepPicking={() => setBatchMenuOpen(false)}
+        onComplete={completeBatch}
+        onAbandon={abandonBatch}
+      />
       <PauseMenu
         open={pauseOpen}
         onClose={() => setPauseOpen(false)}
@@ -253,6 +350,7 @@ function GameBoard({ onExit }: Props) {
           const row = Math.floor(i / COLS);
           const col = i % COLS;
           const tile = tiles.find(t => t.id === n);
+          const isPicked = batch?.picked.includes(n) ?? false;
 
           return (
             <Box
@@ -276,6 +374,9 @@ function GameBoard({ onExit }: Props) {
                 boxSizing: "border-box",
                 transition: "background 0.2s",
                 ...getTileColors(tile),
+                // A picked tile keeps its own colour and just wears a ring until
+                // the batch is completed and it actually flips
+                boxShadow: isPicked ? "inset 0 0 0 0.3vw #1976d2" : "none",
               }}
             >
               <Typography sx={{ fontWeight: 600, fontSize: "inherit", lineHeight: 1 }}>

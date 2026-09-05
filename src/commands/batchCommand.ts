@@ -15,6 +15,35 @@ export type BatchCommandResult = { error: string } | { tiles: GameTile[] };
 export const isBatchCommand = (trimmed: string): boolean =>
   trimmed === "b" || trimmed.startsWith("b/");
 
+// Shared by the typed command and the click-driven picker, so both reject the
+// same sizes with the same wording
+export const validateBatchSize = (sizePart: string, total: number): string | null => {
+  if (!/^\d+$/.test(sizePart)) return "Batch size must be a whole number";
+  const size = Number(sizePart);
+  if (size < 1) return "Batch size must be at least 1";
+  if (size > total) return `Batch size cannot exceed ${total}`;
+  return null;
+};
+
+// Whether one tile may join a batch. Same rules parseBatchCommand applies to a
+// whole typed list, worded for a single pick.
+export const checkTileForBatch = (tile: GameTile, isWinnersGame: boolean): string | null => {
+  // In the losers game a tile can only be edited once it is out of the winners game
+  if (!isWinnersGame && !tile.isEliminatedInWinners) {
+    return `${tile.id} is not eliminated in Reverse Raffle`;
+  }
+  const eliminated = isWinnersGame ? tile.isEliminatedInWinners : tile.isEliminatedInLosers;
+  if (eliminated) return `${tile.id} is already eliminated`;
+  return null;
+};
+
+// The tile as it will be written once the batch goes through
+export const eliminateTile = (tile: GameTile, isWinnersGame: boolean): GameTile => ({
+  ...tile,
+  isEliminatedInWinners: isWinnersGame ? true : tile.isEliminatedInWinners,
+  isEliminatedInLosers: isWinnersGame ? tile.isEliminatedInLosers : true,
+});
+
 // Validates "b/<batch size>/<n1,n2,...>", which only ever moves tiles from
 // not-eliminated to eliminated. Returns the tiles to write, or an error message.
 export const parseBatchCommand = (
@@ -26,11 +55,11 @@ export const parseBatchCommand = (
 
   const sizePart = parts[1].trim();
   const listPart = parts[2].trim();
-  if (!/^\d+$/.test(sizePart)) return { error: "Batch size must be a whole number" };
+
+  const sizeError = validateBatchSize(sizePart, total);
+  if (sizeError) return { error: sizeError };
 
   const size = Number(sizePart);
-  if (size < 1) return { error: "Batch size must be at least 1" };
-  if (size > total) return { error: `Batch size cannot exceed ${total}` };
   if (listPart === "") return { error: USAGE };
 
   const entries = listPart.split(",").map(s => s.trim());
@@ -74,11 +103,5 @@ export const parseBatchCommand = (
     return { error: `Already eliminated: ${alreadyEliminated.map(t => t.id).join(", ")}` };
   }
 
-  return {
-    tiles: batch.map(t => ({
-      ...t,
-      isEliminatedInWinners: isWinnersGame ? true : t.isEliminatedInWinners,
-      isEliminatedInLosers: isWinnersGame ? t.isEliminatedInLosers : true,
-    })),
-  };
+  return { tiles: batch.map(t => eliminateTile(t, isWinnersGame)) };
 };
