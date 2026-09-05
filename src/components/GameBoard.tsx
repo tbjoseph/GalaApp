@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Box, Typography, TextField, Paper, Dialog, DialogTitle, DialogActions, Button } from "@mui/material";
+import { Box, Typography, Dialog, DialogTitle, DialogActions, Button } from "@mui/material";
 import { grey } from "@mui/material/colors";
 import type { GameTile } from "../types";
 import { isBatchCommand, parseBatchCommand } from "../commands/batchCommand";
+import CommandBar from "./CommandBar";
 
 const COLS = 15;
 const ROWS = 10;
@@ -62,6 +63,11 @@ function GameBoard({ onExit }: Props) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [commandMode, pauseOpen, showCommandList, isRevealing, closeCommandMode]);
+
+  const handleCommandChange = (value: string) => {
+    setCommand(value);
+    if (commandError) setCommandError(null);
+  };
 
   // Handle command submit
   const handleCommandSubmit = async (e: React.FormEvent) => {
@@ -452,79 +458,12 @@ function GameBoard({ onExit }: Props) {
         })}
       </Box>
       {commandMode && (
-        <Paper
-          elevation={3}
-          sx={{
-            position: "fixed",
-            left: 0,
-            bottom: 0,
-            width: "100vw",
-            bgcolor: "#222",
-            color: "#fff",
-            p: 1,
-            zIndex: 2000,
-            borderRadius: 0,
-          }}
-        >
-          <form
-            onSubmit={handleCommandSubmit}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              height: "2.5em",
-            }}
-          >
-            <Typography
-              component="span"
-              sx={{
-                fontFamily: "monospace",
-                fontWeight: 700,
-                fontSize: 18,
-                mr: 1,
-                display: "flex",
-                alignItems: "center",
-                height: "100%",
-              }}
-            >
-              :
-            </Typography>
-            <TextField
-              value={command}
-              onChange={e => {
-                setCommand(e.target.value);
-                if (commandError) setCommandError(null);
-              }}
-              variant="standard"
-              InputProps={{
-                disableUnderline: true,
-                style: {
-                  color: "#fff",
-                  fontFamily: "monospace",
-                  fontSize: 18,
-                  background: "transparent",
-                },
-              }}
-              sx={{
-                width: 360,
-              }}
-              autoFocus
-            />
-            {commandError && (
-              <Typography
-                sx={{
-                  color: "#ff5252",
-                  fontFamily: "monospace",
-                  fontSize: 16,
-                  ml: 2,
-                  transition: "color 0.2s",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {commandError}
-              </Typography>
-            )}
-          </form>
-        </Paper>
+        <CommandBar
+          value={command}
+          error={commandError}
+          onChange={handleCommandChange}
+          onSubmit={handleCommandSubmit}
+        />
       )}
     </Box>
   );
