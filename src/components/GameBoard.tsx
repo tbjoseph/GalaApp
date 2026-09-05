@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Box, Typography, TextField, Paper, Dialog, DialogTitle, DialogActions, Button } from "@mui/material";
 import { grey } from "@mui/material/colors";
@@ -29,7 +29,6 @@ function GameBoard({ onExit }: Props) {
   const [showCommandList, setShowCommandList] = useState(false);
   const [commandError, setCommandError] = useState<string | null>(null);
   const [isRevealing, setIsRevealing] = useState(false);
-  const commandInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -55,7 +54,6 @@ function GameBoard({ onExit }: Props) {
       // Don't open command mode if any dialogs are open
       if (!(pauseOpen || showCommandList || isRevealing) && !commandMode && e.key === ":") {
         setCommandMode(true);
-        setTimeout(() => commandInputRef.current?.focus(), 0);
         e.preventDefault();
       } else if (commandMode && e.key === "Escape") {
         closeCommandMode();
@@ -491,7 +489,6 @@ function GameBoard({ onExit }: Props) {
               :
             </Typography>
             <TextField
-              inputRef={commandInputRef}
               value={command}
               onChange={e => {
                 setCommand(e.target.value);
