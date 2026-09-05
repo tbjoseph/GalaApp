@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Box, Typography, Dialog, DialogTitle, DialogActions, Button } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { grey } from "@mui/material/colors";
 import type { GameTile } from "../types";
 import { isBatchCommand, parseBatchCommand } from "../commands/batchCommand";
 import CommandBar from "./CommandBar";
+import PauseMenu from "./PauseMenu";
 
 const COLS = 15;
 const ROWS = 10;
@@ -27,7 +28,6 @@ function GameBoard({ onExit }: Props) {
   const [commandMode, setCommandMode] = useState(false);
   const [command, setCommand] = useState("");
   const [pauseOpen, setPauseOpen] = useState(false);
-  const [showCommandList, setShowCommandList] = useState(false);
   const [commandError, setCommandError] = useState<string | null>(null);
   const [isRevealing, setIsRevealing] = useState(false);
 
@@ -53,7 +53,7 @@ function GameBoard({ onExit }: Props) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't open command mode if any dialogs are open
-      if (!(pauseOpen || showCommandList || isRevealing) && !commandMode && e.key === ":") {
+      if (!(pauseOpen || isRevealing) && !commandMode && e.key === ":") {
         setCommandMode(true);
         e.preventDefault();
       } else if (commandMode && e.key === "Escape") {
@@ -62,7 +62,7 @@ function GameBoard({ onExit }: Props) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [commandMode, pauseOpen, showCommandList, isRevealing, closeCommandMode]);
+  }, [commandMode, pauseOpen, isRevealing, closeCommandMode]);
 
   const handleCommandChange = (value: string) => {
     setCommand(value);
@@ -172,12 +172,6 @@ function GameBoard({ onExit }: Props) {
     return { color: grey[400], bgcolor: "#f7f7f7", };
   }
 
-  // Handler to close all dialogs
-  const handleCloseAllDialogs = () => {
-    setPauseOpen(false);
-    setShowCommandList(false);
-  };
-
   return (
     <Box
       sx={{
@@ -235,178 +229,12 @@ function GameBoard({ onExit }: Props) {
           <span style={{ fontSize: "1vw", lineHeight: 1, marginRight: "0.5vw" }}>▐▐</span>
         </button>
       </Box>
-      <Dialog
-        open={pauseOpen && !showCommandList}
+      <PauseMenu
+        open={pauseOpen}
         onClose={() => setPauseOpen(false)}
-        PaperProps={{
-          sx: {
-            minWidth: "30vw",
-            minHeight: "20vh",
-            borderRadius: "1vw",
-            p: 2,
-            textAlign: "center"
-          }
-        }}
-      >
-        <DialogTitle sx={{ fontSize: "2vw", fontWeight: 700 }}>Paused</DialogTitle>
-        <DialogActions
-          disableSpacing
-          sx={{
-            flexDirection: "column",
-            alignItems: "stretch",
-            gap: 2,
-            pb: 2,
-            pt: 1,
-          }}
-        >
-          <Button
-            onClick={() => setPauseOpen(false)}
-            variant="contained"
-            sx={{
-              fontSize: "1.2vw",
-              borderRadius: "0.7vw",
-              px: "2vw",
-              py: "0.7vw"
-            }}
-          >
-            Resume
-          </Button>
-          <Button
-            onClick={() => setIsWinnersGame(prev => !prev)}
-            variant="contained"
-            color="secondary"
-            sx={{
-              fontSize: "1.2vw",
-              borderRadius: "0.7vw",
-              px: "2vw",
-              py: "0.7vw"
-            }}
-          >
-            Switch Game Screen
-          </Button>
-          <Button
-            onClick={() => setShowCommandList(true)}
-            variant="contained"
-            color="info"
-            sx={{
-              fontSize: "1.2vw",
-              borderRadius: "0.7vw",
-              px: "2vw",
-              py: "0.7vw"
-            }}
-          >
-            Command List
-          </Button>
-          <Button
-            onClick={onExit}
-            variant="outlined"
-            color="error"
-            sx={{
-              fontSize: "1.2vw",
-              borderRadius: "0.7vw",
-              px: "2vw",
-              py: "0.7vw"
-            }}
-          >
-            Exit Game
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Command List Dialog */}
-      <Dialog
-        open={showCommandList}
-        onClose={handleCloseAllDialogs}
-        PaperProps={{
-          sx: {
-            minWidth: "36vw",
-            minHeight: "32vh",
-            borderRadius: "1vw",
-            p: 0,
-            textAlign: "left",
-            position: "relative",
-            overflow: "visible",
-          }
-        }}
-      >
-        {/* Back button */}
-        <Button
-          onClick={() => setShowCommandList(false)}
-          sx={{
-            position: "absolute",
-            top: "1vw",
-            left: "1vw",
-            minWidth: "2vw",
-            minHeight: "2vw",
-            width: "2vw",
-            height: "2vw",
-            borderRadius: "50%",
-            fontWeight: 700,
-            fontSize: "1.5vw",
-            zIndex: 10,
-            color: "#222",
-            background: "#eee",
-            "&:hover": { background: "#ddd" },
-            p: 0,
-          }}
-        >
-          ←
-        </Button>
-        {/* X button */}
-        <Button
-          onClick={handleCloseAllDialogs}
-          sx={{
-            position: "absolute",
-            top: "1vw",
-            right: "1vw",
-            minWidth: "2vw",
-            minHeight: "2vw",
-            width: "2vw",
-            height: "2vw",
-            borderRadius: "50%",
-            fontWeight: 700,
-            fontSize: "1.5vw",
-            zIndex: 10,
-            color: "#222",
-            background: "#eee",
-            "&:hover": { background: "#ddd" },
-            p: 0,
-          }}
-        >
-          ×
-        </Button>
-        <Box sx={{ p: "2.5vw 2vw 2vw 2vw", pt: "4vw" }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, fontSize: "1.7vw" }}>
-            Command Mode
-          </Typography>
-          <Typography sx={{ mb: 2, fontSize: "1.1vw" }}>
-            Press <b>:</b> to enter command mode. Type a command and press <b>Enter</b>.
-          </Typography>
-          <Typography sx={{ mb: 1, fontWeight: 600, fontSize: "1.2vw" }}>
-            Available Commands:
-          </Typography>
-          <Box component="ul" sx={{ pl: 3, mb: 2, fontSize: "1.1vw" }}>
-            <li>
-              <b>&lt;number&gt;</b> — Toggle <i>eliminated</i> for that tile (e.g. <b>25</b>)
-            </li>
-            <li>
-              <b>b/&lt;batch size&gt;/&lt;numbers&gt;</b> — Eliminate several tiles at once
-              (e.g. <b>b/4/1,2,3,5</b>). The count must match the batch size and none of
-              the tiles may already be eliminated. They flip one at a time, in the
-              order entered.
-            </li>
-            <li>
-              <b>s</b> — Switch between Winners and Losers game screens
-            </li>
-            <li>
-              <b>Esc</b> — Exit command mode
-            </li>
-          </Box>
-          <Typography sx={{ fontSize: "1vw", color: grey[600] }}>
-            You can also left-click a tile to toggle eliminated.
-          </Typography>
-        </Box>
-      </Dialog>
+        onSwitchGame={() => setIsWinnersGame(prev => !prev)}
+        onExit={onExit}
+      />
       <Box
         sx={{
           display: "grid",
