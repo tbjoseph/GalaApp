@@ -6,6 +6,11 @@ import { grey } from "@mui/material/colors";
 const COLS = 15;
 const ROWS = 10;
 
+// How long each tile in a batch waits before the next one flips
+const BATCH_REVEAL_MS = 600;
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 interface GameTile {
   id: number;
   isEliminatedInWinners: boolean;
@@ -29,6 +34,7 @@ function GameBoard({ onExit }: Props) {
   const [invalidCommand, setInvalidCommand] = useState(false);
   const [losersEditError, setLosersEditError] = useState(false);
   const [batchError, setBatchError] = useState<string | null>(null);
+  const [isRevealing, setIsRevealing] = useState(false);
   const commandInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -55,7 +61,7 @@ function GameBoard({ onExit }: Props) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't open command mode if any dialogs are open
-      if (!(pauseOpen || showCommandList) && !commandMode && e.key === ":") {
+      if (!(pauseOpen || showCommandList || isRevealing) && !commandMode && e.key === ":") {
         setCommandMode(true);
         setTimeout(() => commandInputRef.current?.focus(), 0);
         e.preventDefault();
@@ -65,7 +71,7 @@ function GameBoard({ onExit }: Props) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [commandMode, pauseOpen, showCommandList, closeCommandMode]);
+  }, [commandMode, pauseOpen, showCommandList, isRevealing, closeCommandMode]);
 
   // Handle command submit
   const handleCommandSubmit = async (e: React.FormEvent) => {
@@ -86,12 +92,19 @@ function GameBoard({ onExit }: Props) {
 
     // Command: b/<batch size>/<n1,n2,...> to eliminate several tiles at once
     if (trimmed === "b" || trimmed.startsWith("b/")) {
-      const error = await runBatchCommand(trimmed);
-      if (error) {
-        setBatchError(error);
+      const result = parseBatchCommand(trimmed);
+      if ("error" in result) {
+        setBatchError(result.error);
+        return;
+      }
+      try {
+        await invoke("update_game_tiles", { tiles: result.tiles });
+      } catch (err) {
+        setBatchError(`Update failed: ${err}`);
         return;
       }
       closeCommandMode();
+      await revealBatch(result.tiles);
       return;
     }
 
@@ -115,45 +128,45 @@ function GameBoard({ onExit }: Props) {
     setInvalidCommand(true);
   };
 
-  // Parses and applies "b/<batch size>/<n1,n2,...>", which only ever moves tiles
-  // from not-eliminated to eliminated. Returns an error message, or null on success.
-  const runBatchCommand = async (trimmed: string): Promise<string | null> => {
+  // Validates "b/<batch size>/<n1,n2,...>", which only ever moves tiles from
+  // not-eliminated to eliminated. Returns the tiles to write, or an error message.
+  const parseBatchCommand = (trimmed: string): { error: string } | { tiles: GameTile[] } => {
     const usage = "Usage: b/<batch size>/<n1,n2,...>";
     const parts = trimmed.split("/");
-    if (parts.length !== 3) return usage;
+    if (parts.length !== 3) return { error: usage };
 
     const sizePart = parts[1].trim();
     const listPart = parts[2].trim();
-    if (!/^\d+$/.test(sizePart)) return "Batch size must be a whole number";
+    if (!/^\d+$/.test(sizePart)) return { error: "Batch size must be a whole number" };
 
     const size = Number(sizePart);
-    if (size < 1) return "Batch size must be at least 1";
-    if (size > total) return `Batch size cannot exceed ${total}`;
-    if (listPart === "") return usage;
+    if (size < 1) return { error: "Batch size must be at least 1" };
+    if (size > total) return { error: `Batch size cannot exceed ${total}` };
+    if (listPart === "") return { error: usage };
 
     const entries = listPart.split(",").map(s => s.trim());
     const notNumbers = entries.filter(s => !/^\d+$/.test(s));
     if (notNumbers.length > 0) {
-      return `Not a number: ${notNumbers.map(s => (s === "" ? "(blank)" : s)).join(", ")}`;
+      return { error: `Not a number: ${notNumbers.map(s => (s === "" ? "(blank)" : s)).join(", ")}` };
     }
 
     const ids = entries.map(Number);
     if (ids.length !== size) {
-      return `Batch size is ${size} but ${ids.length} number${ids.length === 1 ? " was" : "s were"} entered`;
+      return { error: `Batch size is ${size} but ${ids.length} number${ids.length === 1 ? " was" : "s were"} entered` };
     }
 
     const duplicates = [...new Set(ids.filter((n, i) => ids.indexOf(n) !== i))];
     if (duplicates.length > 0) {
-      return `Duplicate number${duplicates.length > 1 ? "s" : ""}: ${duplicates.join(", ")}`;
+      return { error: `Duplicate number${duplicates.length > 1 ? "s" : ""}: ${duplicates.join(", ")}` };
     }
 
     const outOfRange = ids.filter(n => n < 1 || n > total);
     if (outOfRange.length > 0) {
-      return `Out of range (1-${total}): ${outOfRange.join(", ")}`;
+      return { error: `Out of range (1-${total}): ${outOfRange.join(", ")}` };
     }
 
     const missing = ids.filter(n => !tiles.some(t => t.id === n));
-    if (missing.length > 0) return `Not on the board: ${missing.join(", ")}`;
+    if (missing.length > 0) return { error: `Not on the board: ${missing.join(", ")}` };
 
     const batch = ids.map(n => tiles.find(t => t.id === n)!);
 
@@ -161,7 +174,7 @@ function GameBoard({ onExit }: Props) {
     if (!isWinnersGame) {
       const stillIn = batch.filter(t => !t.isEliminatedInWinners);
       if (stillIn.length > 0) {
-        return `Not eliminated in Reverse Raffle: ${stillIn.map(t => t.id).join(", ")}`;
+        return { error: `Not eliminated in Reverse Raffle: ${stillIn.map(t => t.id).join(", ")}` };
       }
     }
 
@@ -169,24 +182,33 @@ function GameBoard({ onExit }: Props) {
       isWinnersGame ? t.isEliminatedInWinners : t.isEliminatedInLosers
     );
     if (alreadyEliminated.length > 0) {
-      return `Already eliminated: ${alreadyEliminated.map(t => t.id).join(", ")}`;
+      return { error: `Already eliminated: ${alreadyEliminated.map(t => t.id).join(", ")}` };
     }
 
-    const updated = batch.map(t => ({
-      ...t,
-      isEliminatedInWinners: isWinnersGame ? true : t.isEliminatedInWinners,
-      isEliminatedInLosers: isWinnersGame ? t.isEliminatedInLosers : true,
-    }));
+    return {
+      tiles: batch.map(t => ({
+        ...t,
+        isEliminatedInWinners: isWinnersGame ? true : t.isEliminatedInWinners,
+        isEliminatedInLosers: isWinnersGame ? t.isEliminatedInLosers : true,
+      })),
+    };
+  };
 
+  // The batch is already saved by this point, so this only paces the board:
+  // tiles flip one at a time, in the order they were typed, like a live draw
+  const revealBatch = async (batch: GameTile[]) => {
+    setIsRevealing(true);
     try {
-      await invoke("update_game_tiles", { tiles: updated });
-    } catch (e) {
-      return `Update failed: ${e}`;
+      for (let i = 0; i < batch.length; i++) {
+        if (i > 0) await sleep(BATCH_REVEAL_MS);
+        const tile = batch[i];
+        setTiles(prev => prev.map(t => (t.id === tile.id ? tile : t)));
+      }
+      const list = await invoke<GameTile[]>("get_game_board");
+      setTiles(list);
+    } finally {
+      setIsRevealing(false);
     }
-
-    const list = await invoke<GameTile[]>("get_game_board");
-    setTiles(list);
-    return null;
   };
 
   const updateTile = async (tile: GameTile | undefined) => {
@@ -197,7 +219,7 @@ function GameBoard({ onExit }: Props) {
   };
 
   const handleTileClick = async (tile: GameTile | undefined) => {
-    if (!tile) return;
+    if (!tile || isRevealing) return;
 
     switch (isWinnersGame) {
       case true: // Winners
@@ -446,7 +468,8 @@ function GameBoard({ onExit }: Props) {
             <li>
               <b>b/&lt;batch size&gt;/&lt;numbers&gt;</b> — Eliminate several tiles at once
               (e.g. <b>b/4/1,2,3,5</b>). The count must match the batch size and none of
-              the tiles may already be eliminated.
+              the tiles may already be eliminated. They flip one at a time, in the
+              order entered.
             </li>
             <li>
               <b>s</b> — Switch between Winners and Losers game screens
