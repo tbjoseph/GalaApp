@@ -2,7 +2,7 @@ use crate::file_service::Db;
 use sqlx::FromRow;
 use tauri::State;
 
-#[derive(Debug, FromRow, serde::Serialize)]
+#[derive(Debug, FromRow, serde::Serialize, serde::Deserialize)]
 pub struct GameTile {
     pub id: i64,
 
@@ -61,6 +61,52 @@ pub async fn update_game_tile(
     .execute(&mut *tx)
     .await
     .map_err(|e| e.to_string())?;
+
+    sqlx::query(
+        r#"
+        UPDATE Config SET value = ? WHERE key = 'LastUpdateTime'
+        "#
+    )
+    .bind(&now)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn update_game_tiles(
+    state: State<'_, Db>,
+    tiles: Vec<GameTile>,
+) -> Result<(), String> {
+    if tiles.is_empty() {
+        return Err("No tiles to update".to_string());
+    }
+
+    let pool = state.lock().read().await.as_ref().cloned().ok_or("No DB open")?;
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+
+    for tile in &tiles {
+        sqlx::query(
+            r#"
+            UPDATE GameBoard
+            SET
+                isEliminatedInWinners = ?,
+                isEliminatedInLosers = ?
+            WHERE id = ?
+            "#
+        )
+        .bind(tile.is_eliminated_in_winners)
+        .bind(tile.is_eliminated_in_losers)
+        .bind(tile.id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    }
 
     sqlx::query(
         r#"

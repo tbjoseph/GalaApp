@@ -3,7 +3,7 @@ mod file_service;
 use file_service::{Db, list_save_files, open_existing_save, open_new_save, list_save_games, delete_save_file};
 
 mod game_service;
-use game_service::{get_game_board, update_game_tile};
+use game_service::{get_game_board, update_game_tile, update_game_tiles};
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 // #[tauri::command]
 // fn greet(name: &str) -> String {
@@ -34,6 +34,7 @@ pub fn run() {
             list_save_games,
             get_game_board,
             update_game_tile,
+            update_game_tiles,
             delete_save_file,
         ])
         .run(tauri::generate_context!())
