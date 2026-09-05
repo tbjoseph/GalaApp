@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Box, Typography, TextField, Paper, Dialog, DialogTitle, DialogActions, Button } from "@mui/material";
 import { grey } from "@mui/material/colors";
@@ -42,6 +42,15 @@ function GameBoard({ onExit }: Props) {
     })();
   }, []);
 
+  // Closes the command bar, discarding whatever was typed and any error on screen
+  const closeCommandMode = useCallback(() => {
+    setCommandMode(false);
+    setCommand("");
+    setInvalidCommand(false);
+    setLosersEditError(false);
+    setBatchError(null);
+  }, []);
+
   // Listen for ':' key to enter command mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -51,41 +60,38 @@ function GameBoard({ onExit }: Props) {
         setTimeout(() => commandInputRef.current?.focus(), 0);
         e.preventDefault();
       } else if (commandMode && e.key === "Escape") {
-        setCommandMode(false);
-        setCommand("");
+        closeCommandMode();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [commandMode, pauseOpen, showCommandList]);
+  }, [commandMode, pauseOpen, showCommandList, closeCommandMode]);
 
   // Handle command submit
   const handleCommandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = command.trim();
 
+    // Whatever error is on screen belongs to the previous command
+    setInvalidCommand(false);
+    setLosersEditError(false);
+    setBatchError(null);
+
     // Command: s to toggle isWinnersGame
     if (trimmed === "s") {
       setIsWinnersGame(prev => !prev);
-      setCommandMode(false);
-      setCommand("");
-      setInvalidCommand(false);
-      setBatchError(null);
+      closeCommandMode();
       return;
     }
 
     // Command: b/<batch size>/<n1,n2,...> to eliminate several tiles at once
     if (trimmed === "b" || trimmed.startsWith("b/")) {
       const error = await runBatchCommand(trimmed);
-      setInvalidCommand(false);
-      setLosersEditError(false);
       if (error) {
         setBatchError(error);
         return;
       }
-      setCommandMode(false);
-      setCommand("");
-      setBatchError(null);
+      closeCommandMode();
       return;
     }
 
@@ -97,22 +103,16 @@ function GameBoard({ onExit }: Props) {
         // Prevent editing if in losers game and tile is not eliminated in winners
         if (!isWinnersGame && !tile.isEliminatedInWinners) {
           setLosersEditError(true);
-          setInvalidCommand(false);
-          setBatchError(null);
           return;
         }
         handleTileClick(tile);
-        setCommandMode(false);
-        setCommand("");
-        setInvalidCommand(false);
-        setBatchError(null);
+        closeCommandMode();
         return;
       }
     }
 
     // Invalid command
     setInvalidCommand(true);
-    setBatchError(null);
   };
 
   // Parses and applies "b/<batch size>/<n1,n2,...>", which only ever moves tiles
