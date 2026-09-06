@@ -202,7 +202,10 @@ pub async fn open_existing_save(
             .map_err(|e| format!("Failed to open {}: {}", candidate, e))?;
 
         let row: Option<(String,)> =
-            sqlx::query_as("SELECT value FROM Config WHERE key = 'gameName' LIMIT 1")
+            // CAST because Config.value is declared STRING, which SQLite reads as
+            // NUMERIC affinity: an all-digits game name is stored as an integer and
+            // sqlx will not decode that into a String.
+            sqlx::query_as("SELECT CAST(value AS TEXT) FROM Config WHERE key = 'gameName' LIMIT 1")
                 .fetch_optional(&pool)
                 .await
                 .map_err(|e| format!("Failed to query {}: {}", candidate, e))?;
@@ -262,9 +265,11 @@ pub async fn list_save_games(app: tauri::AppHandle) -> Result<Vec<GameSave>, Str
             r#"
             SELECT
                 ?1 AS fileName,
-                (SELECT value FROM Config WHERE key = 'gameName'        LIMIT 1) AS gameName,
-                (SELECT value FROM Config WHERE key = 'CreateTime'      LIMIT 1) AS createTime,
-                (SELECT value FROM Config WHERE key = 'LastUpdateTime'  LIMIT 1) AS lastUpdateTime
+                -- CAST: see open_existing_save. Config.value has NUMERIC affinity,
+                -- so a numeric-looking value comes back as a number and fails to decode.
+                (SELECT CAST(value AS TEXT) FROM Config WHERE key = 'gameName'        LIMIT 1) AS gameName,
+                (SELECT CAST(value AS TEXT) FROM Config WHERE key = 'CreateTime'      LIMIT 1) AS createTime,
+                (SELECT CAST(value AS TEXT) FROM Config WHERE key = 'LastUpdateTime'  LIMIT 1) AS lastUpdateTime
             "#
         )
         .bind(&file_name)   // inject the file name you already have
