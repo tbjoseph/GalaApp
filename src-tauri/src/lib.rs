@@ -4,6 +4,9 @@ use file_service::{Db, list_save_files, open_existing_save, open_new_save, list_
 
 mod game_service;
 use game_service::{get_game_board, update_game_tile, update_game_tiles};
+
+mod log_service;
+use log_service::{add_game_log, get_game_log};
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 // #[tauri::command]
 // fn greet(name: &str) -> String {
@@ -35,6 +38,8 @@ pub fn run() {
             get_game_board,
             update_game_tile,
             update_game_tiles,
+            add_game_log,
+            get_game_log,
             delete_save_file,
         ])
         .run(tauri::generate_context!())

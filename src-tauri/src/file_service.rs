@@ -12,6 +12,8 @@ use std::{
 use tauri::Manager;
 use tokio::sync::RwLock;
 
+use crate::log_service::ensure_game_log_table;
+
 #[derive(Default)]
 pub struct Db(pub Arc<RwLock<Option<SqlitePool>>>);
 
@@ -172,6 +174,8 @@ pub async fn open_new_save(
         .await
         .map_err(|e| e.to_string())?;
 
+    ensure_game_log_table(&pool).await?;
+
     *state.lock().write().await = Some(pool);
     Ok(())
 }
@@ -231,6 +235,8 @@ pub async fn open_existing_save(
         .connect_with(opts)
         .await
         .map_err(|e| e.to_string())?;
+
+    ensure_game_log_table(&pool).await?;
 
     *state.lock().write().await = Some(pool);
     Ok(())

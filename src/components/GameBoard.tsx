@@ -9,6 +9,7 @@ import {
   checkTileForBatch,
   eliminateTile,
 } from "../commands/batchCommand";
+import { logBatch, logFlip, screenOf } from "../commands/gameLog";
 import CommandBar from "./CommandBar";
 import PauseMenu from "./PauseMenu";
 import BatchPicker from "./BatchPicker";
@@ -133,6 +134,7 @@ function GameBoard({ onExit }: Props) {
         setCommandError(`Update failed: ${err}`);
         return;
       }
+      logBatch(screenOf(isWinnersGame), result.tiles.map(t => t.id));
       closeCommandMode();
       await revealBatch(result.tiles);
       return;
@@ -226,6 +228,7 @@ function GameBoard({ onExit }: Props) {
       setBatchError(`Update failed: ${err}`);
       return;
     }
+    logBatch(screenOf(isWinnersGame), batch.picked);
 
     setBatchMenuOpen(false);
     setBatch(null);
@@ -257,7 +260,10 @@ function GameBoard({ onExit }: Props) {
         if (!tile.isEliminatedInWinners) return;
         tile.isEliminatedInLosers = !tile.isEliminatedInLosers;
     }
-    updateTile(tile);
+    // Read the side that just moved, so the log says which way the flip went
+    const wasEliminated = isWinnersGame ? tile.isEliminatedInWinners : tile.isEliminatedInLosers;
+    await updateTile(tile);
+    logFlip(screenOf(isWinnersGame), tile.id, wasEliminated);
   };
 
   const getTileColors = (tile: GameTile | undefined) => {
@@ -328,6 +334,7 @@ function GameBoard({ onExit }: Props) {
       />
       <PauseMenu
         open={pauseOpen}
+        isWinnersGame={isWinnersGame}
         onClose={() => setPauseOpen(false)}
         onSwitchGame={() => setIsWinnersGame(prev => !prev)}
         onExit={onExit}

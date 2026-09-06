@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { Box, Typography, Dialog, DialogTitle, DialogActions, Button } from "@mui/material";
 import { grey } from "@mui/material/colors";
+import GameLogDialog from "./GameLogDialog";
+import { cornerButtonSx, subDialogPaperSx } from "./dialogChrome";
 
 type Props = {
   open: boolean;
+  isWinnersGame: boolean;
   onClose: () => void;
   onSwitchGame: () => void;
   onExit: () => void;
@@ -16,38 +19,25 @@ const menuButtonSx = {
   py: "0.7vw",
 };
 
-const cornerButtonSx = {
-  position: "absolute",
-  top: "1vw",
-  minWidth: "2vw",
-  minHeight: "2vw",
-  width: "2vw",
-  height: "2vw",
-  borderRadius: "50%",
-  fontWeight: 700,
-  fontSize: "1.5vw",
-  zIndex: 10,
-  color: "#222",
-  background: "#eee",
-  "&:hover": { background: "#ddd" },
-  p: 0,
-};
+// Which of the pause screens is showing. All three are opened by the pause
+// dialog's own buttons and closed together, so this stays internal state.
+type View = "menu" | "commands" | "log";
 
-// The pause dialog and the command list behind it. Which of the two is showing
-// is this component's business, so the board only knows the menu is open.
-function PauseMenu({ open, onClose, onSwitchGame, onExit }: Props) {
-  const [showCommands, setShowCommands] = useState(false);
+// The pause dialog and the screens behind it. Which one is showing is this
+// component's business, so the board only knows the menu is open.
+function PauseMenu({ open, isWinnersGame, onClose, onSwitchGame, onExit }: Props) {
+  const [view, setView] = useState<View>("menu");
 
   // Leaving the menu always drops back to the pause screen for next time
   const handleClose = () => {
-    setShowCommands(false);
+    setView("menu");
     onClose();
   };
 
   return (
     <>
       <Dialog
-        open={open && !showCommands}
+        open={open && view === "menu"}
         onClose={handleClose}
         PaperProps={{
           sx: {
@@ -77,7 +67,15 @@ function PauseMenu({ open, onClose, onSwitchGame, onExit }: Props) {
             Switch Game Screen
           </Button>
           <Button
-            onClick={() => setShowCommands(true)}
+            onClick={() => setView("log")}
+            variant="contained"
+            color="info"
+            sx={menuButtonSx}
+          >
+            Game Log
+          </Button>
+          <Button
+            onClick={() => setView("commands")}
             variant="contained"
             color="info"
             sx={menuButtonSx}
@@ -90,24 +88,21 @@ function PauseMenu({ open, onClose, onSwitchGame, onExit }: Props) {
         </DialogActions>
       </Dialog>
 
+      <GameLogDialog
+        open={open && view === "log"}
+        isWinnersGame={isWinnersGame}
+        onBack={() => setView("menu")}
+        onClose={handleClose}
+      />
+
       {/* Command List Dialog */}
       <Dialog
-        open={open && showCommands}
+        open={open && view === "commands"}
         onClose={handleClose}
-        PaperProps={{
-          sx: {
-            minWidth: "36vw",
-            minHeight: "32vh",
-            borderRadius: "1vw",
-            p: 0,
-            textAlign: "left",
-            position: "relative",
-            overflow: "visible",
-          }
-        }}
+        PaperProps={{ sx: subDialogPaperSx }}
       >
         {/* Back button */}
-        <Button onClick={() => setShowCommands(false)} sx={{ ...cornerButtonSx, left: "1vw" }}>
+        <Button onClick={() => setView("menu")} sx={{ ...cornerButtonSx, left: "1vw" }}>
           ←
         </Button>
         {/* X button */}
@@ -143,7 +138,8 @@ function PauseMenu({ open, onClose, onSwitchGame, onExit }: Props) {
           </Box>
           <Typography sx={{ fontSize: "1vw", color: grey[600] }}>
             You can also left-click a tile to toggle eliminated, or use the <b>▦</b> button
-            to build a batch by clicking tiles instead of typing them.
+            to build a batch by clicking tiles instead of typing them. Every flip and batch
+            is recorded in the game log.
           </Typography>
         </Box>
       </Dialog>
