@@ -294,6 +294,15 @@ function GameBoard({ onExit }: Props) {
     return { color: grey[400], bgcolor: "#f7f7f7", };
   }
 
+  // What the room is counting down: the tiles still green on the screen they
+  // are watching. Losers only ever plays the numbers Winners knocked out, so
+  // that screen counts against those rather than the whole board.
+  const inPlay = isWinnersGame ? tiles : tiles.filter(t => t.isEliminatedInWinners);
+  const remainingTotal = isWinnersGame ? total : inPlay.length;
+  const remaining = inPlay.filter(t =>
+    isWinnersGame ? !t.isEliminatedInWinners : !t.isEliminatedInLosers
+  ).length;
+
   // Mid-batch the button reopens the batch dialog, so it only locks while the
   // board is mid-reveal
   const batchButtonDisabled = isRevealing;
@@ -324,6 +333,23 @@ function GameBoard({ onExit }: Props) {
           }}
         >
           {isWinnersGame ? "Reverse Raffle" : "Second Chances"}
+        </Box>
+        <Box
+          sx={{
+            position: "fixed",
+            top: "2.6vw",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 2100,
+            fontSize: "1.8vw",
+            color: "#000",
+            fontFamily: "Arial Black",
+            userSelect: "none",
+            pointerEvents: "none",
+            lineHeight: 1,
+          }}
+        >
+          Active Tickets: {remaining}/{remainingTotal}
         </Box>
       <BoardControls
         batch={batch}
