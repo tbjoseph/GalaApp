@@ -21,6 +21,10 @@ const ROWS = 10;
 // How long each tile in a batch waits before the next one flips
 const BATCH_REVEAL_MS = 600;
 
+// How long a tile sits white before it turns. Carved out of the gap above
+// rather than added to it, so the draw keeps the cadence it always had.
+const FLASH_MS = 50;
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 type Props = {
@@ -42,6 +46,7 @@ function GameBoard({ onExit }: Props) {
   const [batchMenuOpen, setBatchMenuOpen] = useState(false);
   const [batch, setBatch] = useState<PendingBatch | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
+  const [flashingId, setFlashingId] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -160,18 +165,25 @@ function GameBoard({ onExit }: Props) {
   };
 
   // The batch is already saved by this point, so this only paces the board:
-  // tiles flip one at a time, in the order they were picked, like a live draw
+  // tiles flip one at a time, in the order they were picked, like a live draw.
+  // Each one flashes white on its turn so the room sees which number moved.
   const revealBatch = async (revealed: GameTile[]) => {
     setIsRevealing(true);
     try {
       for (let i = 0; i < revealed.length; i++) {
-        if (i > 0) await sleep(BATCH_REVEAL_MS);
+        if (i > 0) await sleep(Math.max(0, BATCH_REVEAL_MS - FLASH_MS));
         const tile = revealed[i];
+        setFlashingId(tile.id);
+        await sleep(FLASH_MS);
+        // Clearing the flash and writing the tile together means it goes
+        // straight from white to black, with no frame of its old colour
+        setFlashingId(null);
         setTiles(prev => prev.map(t => (t.id === tile.id ? tile : t)));
       }
       const list = await invoke<GameTile[]>("get_game_board");
       setTiles(list);
     } finally {
+      setFlashingId(null);
       setIsRevealing(false);
     }
   };
@@ -358,6 +370,7 @@ function GameBoard({ onExit }: Props) {
           const col = i % COLS;
           const tile = tiles.find(t => t.id === n);
           const isPicked = batch?.picked.includes(n) ?? false;
+          const isFlashing = flashingId === n;
 
           return (
             <Box
@@ -379,8 +392,12 @@ function GameBoard({ onExit }: Props) {
                 width: "100%",
                 height: "100%",
                 boxSizing: "border-box",
-                transition: "background 0.2s",
+                // The white lands with no transition so it reads as a flash,
+                // then the turn to black keeps the usual ease
+                transition: isFlashing ? "none" : "background 0.2s",
                 ...getTileColors(tile),
+                // Number and tile both white, so the whole square blanks out
+                ...(isFlashing ? { color: "#fff", bgcolor: "#fff" } : null),
                 // A picked tile keeps its own colour and just wears a ring until
                 // the batch is completed and it actually flips
                 boxShadow: isPicked ? "inset 0 0 0 0.3vw #1976d2" : "none",
