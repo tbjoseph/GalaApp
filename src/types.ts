@@ -2,6 +2,9 @@ export interface GameTile {
   id: number;
   isEliminatedInWinners: boolean;
   isEliminatedInLosers: boolean;
+  // A ticket nobody bought. Fixed when the game is created: it never plays, and
+  // never counts towards the tickets on screen.
+  isUnsold: boolean;
 }
 
 // A batch being assembled by clicking, in the order the tiles were picked

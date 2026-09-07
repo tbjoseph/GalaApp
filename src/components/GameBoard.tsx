@@ -10,13 +10,14 @@ import {
   eliminateTile,
 } from "../commands/batchCommand";
 import { logBatch, logFlip, screenOf } from "../commands/gameLog";
+import { BOARD_COLS, BOARD_ROWS } from "../board";
 import CommandBar from "./CommandBar";
 import PauseMenu from "./PauseMenu";
 import BatchPicker from "./BatchPicker";
 import BoardControls from "./BoardControls";
 
-const COLS = 15;
-const ROWS = 10;
+const COLS = BOARD_COLS;
+const ROWS = BOARD_ROWS;
 
 // How long each tile in a batch waits before the next one flips
 const BATCH_REVEAL_MS = 600;
@@ -150,6 +151,10 @@ function GameBoard({ onExit }: Props) {
     if (!isNaN(num) && num >= 1 && num <= total) {
       const tile = tiles.find(t => t.id === num);
       if (tile) {
+        if (tile.isUnsold) {
+          setCommandError(`${tile.id} was not sold`);
+          return;
+        }
         // Prevent editing if in losers game and tile is not eliminated in winners
         if (!isWinnersGame && !tile.isEliminatedInWinners) {
           setCommandError("Not allowed: can only edit eliminated tiles from Winners game");
@@ -256,7 +261,8 @@ function GameBoard({ onExit }: Props) {
   };
 
   const handleTileClick = async (tile: GameTile | undefined) => {
-    if (!tile || isRevealing) return;
+    // An unsold ticket is not in the raffle, so it never flips either way
+    if (!tile || isRevealing || tile.isUnsold) return;
 
     // While a batch is being built, clicks pick tiles instead of flipping them
     if (batch) {
@@ -280,6 +286,9 @@ function GameBoard({ onExit }: Props) {
 
   const getTileColors = (tile: GameTile | undefined) => {
     if (tile) {
+      // Unsold tickets read the same on both screens: greyed out, but still
+      // legible, so the room can see the number is out of play rather than drawn
+      if (tile.isUnsold) return { color: grey[500], bgcolor: grey[300] };
       switch (isWinnersGame) {
         case true: // Winners
           if (tile.isEliminatedInWinners) return { color: "#fff", bgcolor: "#000" };
@@ -295,10 +304,13 @@ function GameBoard({ onExit }: Props) {
   }
 
   // What the room is counting down: the tiles still green on the screen they
-  // are watching. Losers only ever plays the numbers Winners knocked out, so
-  // that screen counts against those rather than the whole board.
-  const inPlay = isWinnersGame ? tiles : tiles.filter(t => t.isEliminatedInWinners);
-  const remainingTotal = isWinnersGame ? total : inPlay.length;
+  // are watching. Tickets that never sold are not in the raffle, so they are
+  // out of both the count and the total. Losers only ever plays the numbers
+  // Winners knocked out, so that screen counts against those rather than the
+  // whole board.
+  const sold = tiles.filter(t => !t.isUnsold);
+  const inPlay = isWinnersGame ? sold : sold.filter(t => t.isEliminatedInWinners);
+  const remainingTotal = inPlay.length;
   const remaining = inPlay.filter(t =>
     isWinnersGame ? !t.isEliminatedInWinners : !t.isEliminatedInLosers
   ).length;
@@ -404,7 +416,7 @@ function GameBoard({ onExit }: Props) {
               onClick={() => handleTileClick(tile)}
               onContextMenu={e => e.preventDefault()}
               sx={{
-                cursor: "pointer",
+                cursor: tile?.isUnsold ? "default" : "pointer",
                 borderTop: row === 0 ? "1px solid #000" : 0,
                 borderLeft: col === 0 ? "1px solid #000" : 0,
                 borderRight: "1px solid #000",

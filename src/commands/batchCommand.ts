@@ -28,6 +28,7 @@ export const validateBatchSize = (sizePart: string, total: number): string | nul
 // Whether one tile may join a batch. Same rules parseBatchCommand applies to a
 // whole typed list, worded for a single pick.
 export const checkTileForBatch = (tile: GameTile, isWinnersGame: boolean): string | null => {
+  if (tile.isUnsold) return `${tile.id} was not sold`;
   // In the losers game a tile can only be edited once it is out of the winners game
   if (!isWinnersGame && !tile.isEliminatedInWinners) {
     return `${tile.id} is not eliminated in Reverse Raffle`;
@@ -87,6 +88,11 @@ export const parseBatchCommand = (
   if (missing.length > 0) return { error: `Not on the board: ${missing.join(", ")}` };
 
   const batch = ids.map(n => tiles.find(t => t.id === n)!);
+
+  const unsold = batch.filter(t => t.isUnsold);
+  if (unsold.length > 0) {
+    return { error: `Not sold: ${unsold.map(t => t.id).join(", ")}` };
+  }
 
   // In the losers game a tile can only be edited once it is out of the winners game
   if (!isWinnersGame) {

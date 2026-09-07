@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import SavePickerDialog from "./components/SavePickerDialog";
-import PromptDialog from "./components/PromptDialog";
+import NewGameDialog from "./components/NewGameDialog";
 
 export interface GameSave {
     fileName: string,
@@ -43,7 +43,7 @@ function GameMenu({ onReady }: Props) {
             + String(ts.getMinutes()).padStart(2, "0");
     }
 
-    async function newGame(newGameName: string) {
+    async function newGame(newGameName: string, unsold: number[]) {
         // const fn = await invoke("test", { fileName: "myFile" });
         // console.log(fn);
         // return;
@@ -52,7 +52,8 @@ function GameMenu({ onReady }: Props) {
 
         const safe = newGameName.replace(/[^\w.-]+/g, "_");
         const dbfile = safe.toLowerCase().endsWith(".db") ? safe : `${safe}.db`;
-        await invoke("open_new_save", { fileName: dbfile, gameName: newGameName }); // creates/opens AppConfig/gameSaves/<safe>
+        // unsold numbers are greyed out on the board and never counted as tickets
+        await invoke("open_new_save", { fileName: dbfile, gameName: newGameName, unsold }); // creates/opens AppConfig/gameSaves/<safe>
         onReady?.(safe);
     }
 
@@ -106,14 +107,12 @@ function GameMenu({ onReady }: Props) {
             )}
 
             {open && (
-                <PromptDialog
+                <NewGameDialog
                     open={open}
-                    title="New Game"
-                    message="Please enter a title for this game:"
                     onClose={() => setOpen(false)}
-                    onOk={(value) => {
+                    onOk={(value, unsold) => {
                         setOpen(false);
-                        newGame(value);
+                        newGame(value, unsold);
                     }}
                     onValidate={(value) => {
                         if (gameSaves.map(s => s.gameName).includes(value.trim())) {

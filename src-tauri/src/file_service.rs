@@ -12,6 +12,7 @@ use std::{
 use tauri::Manager;
 use tokio::sync::RwLock;
 
+use crate::game_service::ensure_unsold_column;
 use crate::log_service::ensure_game_log_table;
 
 #[derive(Default)]
@@ -89,6 +90,7 @@ pub async fn open_new_save(
     state: tauri::State<'_, Db>,
     file_name: String,
     game_name: String,
+    unsold: Vec<i64>,
 ) -> Result<(), String> {
     let mut file_name = normalize_save_name(&file_name)?;
     let existing_files = list_save_files(app.clone()).await?;
@@ -137,7 +139,8 @@ pub async fn open_new_save(
     CREATE TABLE GameBoard (
         id INT PRIMARY KEY CHECK (id BETWEEN 1 AND 150),
         isEliminatedInWinners BOOLEAN NOT NULL,
-        isEliminatedInLosers BOOLEAN NOT NULL
+        isEliminatedInLosers BOOLEAN NOT NULL,
+        isUnsold BOOLEAN NOT NULL DEFAULT 0
     );
 
     WITH RECURSIVE nums(id) AS (
@@ -146,9 +149,9 @@ pub async fn open_new_save(
       SELECT id + 1 FROM nums WHERE id < 150
     )
     INSERT INTO GameBoard (
-      id, isEliminatedInWinners, isEliminatedInLosers
+      id, isEliminatedInWinners, isEliminatedInLosers, isUnsold
     )
-    SELECT id, 0, 0
+    SELECT id, 0, 0, 0
     FROM nums;
 
     CREATE TABLE Config (
@@ -160,6 +163,17 @@ pub async fn open_new_save(
     .execute(&pool)
     .await
     .map_err(|e| e.to_string())?;
+
+    // Tickets the room never bought: marked once here, and read-only from then on
+    if !unsold.is_empty() {
+        let placeholders = vec!["?"; unsold.len()].join(",");
+        let sql = format!("UPDATE GameBoard SET isUnsold = 1 WHERE id IN ({placeholders})");
+        let mut query = sqlx::query(&sql);
+        for id in &unsold {
+            query = query.bind(id);
+        }
+        query.execute(&pool).await.map_err(|e| e.to_string())?;
+    }
 
     // Insert config values for gameName, CreateTime, and LastUpdateTime
     let now = chrono::Utc::now().to_rfc3339();
@@ -240,6 +254,7 @@ pub async fn open_existing_save(
         .map_err(|e| e.to_string())?;
 
     ensure_game_log_table(&pool).await?;
+    ensure_unsold_column(&pool).await?;
 
     *state.lock().write().await = Some(pool);
     Ok(())

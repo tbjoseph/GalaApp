@@ -139,7 +139,8 @@ function PauseMenu({ open, isWinnersGame, onClose, onSwitchGame, onExit }: Props
           <Typography sx={{ fontSize: "1vw", color: grey[600] }}>
             You can also left-click a tile to toggle eliminated, or use the <b>▦</b> button
             to build a batch by clicking tiles instead of typing them. Every flip and batch
-            is recorded in the game log.
+            is recorded in the game log. Numbers that were not sold are greyed out: they
+            cannot be flipped or batched, and are left out of the ticket count.
           </Typography>
         </Box>
       </Dialog>
