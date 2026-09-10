@@ -62,7 +62,8 @@ function CommandBar({ value, error, onChange, onSubmit }: Props) {
             },
           }}
           sx={{
-            width: 360,
+            flex: 1,
+            minWidth: 0,
           }}
           autoFocus
         />
@@ -73,6 +74,7 @@ function CommandBar({ value, error, onChange, onSubmit }: Props) {
               fontFamily: "monospace",
               fontSize: 16,
               ml: 2,
+              flexShrink: 0,
               transition: "color 0.2s",
               whiteSpace: "nowrap",
             }}
