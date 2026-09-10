@@ -68,9 +68,11 @@ export default function UnsoldNumbersDialog({
         <Dialog
             open={open}
             onClose={onCancel}
+            maxWidth="md"
+            fullWidth
             slotProps={{
                 paper: {
-                    sx: { borderRadius: 2, p: 1, minWidth: 620 }
+                    sx: { borderRadius: 2, p: 1, minWidth: 900 }
                 },
             }}
         >
@@ -85,6 +87,8 @@ export default function UnsoldNumbersDialog({
                     autoFocus
                     size="small"
                     fullWidth
+                    multiline
+                    maxRows={4}
                     variant="outlined"
                     placeholder="e.g. 3, 7, 20-35"
                     label="Unsold numbers"
